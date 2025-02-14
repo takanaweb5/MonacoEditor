@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monaco Editor</title>
+  <script src="https://cdn.jsdelivr.net/npm/encoding-japanese/encoding.min.js"></script>
+  <script src="https://unpkg.com/monaco-editor@0.33.0/min/vs/loader.js"></script>
+</head>
+
+<body>
+  <div id="toolbar">
+    <div class="toolbar-group">
+      <label for="languageSelector" title="ハイライト対象の言語を選択してください">言語</label>
+      <select id="languageSelector" onchange="changeLanguage()" title="ハイライト対象の言語を選択してください">
+        <option value="plaintext">テキスト</option>
+        <option value="pli">IPO</option>
+        <option value="html">HTML</option>
+        <option value="javascript">JavaScript</option>
+        <option value="css">CSS</option>
+        <option value="vb">VB</option>
+        <option value="sql">SQL</option>
+      </select>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <label for="tabSizeSelector" title="(SHIFT+)TABキーで字下げします">タブサイズ</label>
+      <select id="tabSizeSelector" onchange="changeTabSize()" title="(SHIFT+)TABキーで字下げします">
+        <option value="2">2</option>
+        <option value="4">4</option>
+      </select>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <label for="encodingSelector" title="ファイルの文字コード">文字コード</label>
+      <select id="encodingSelector" title="ファイルの文字コード">
+        <option value="utf8">UTF8</option>
+        <option value="sjis">SJIS</option>
+      </select>
+    </div>
+    <div class="toolbar-separator"></div>
+    <button class="icon-button" onclick="editor.trigger('', 'undo')" title="元に戻す">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" />
+      </svg>
+    </button>
+    <button class="icon-button" onclick="editor.trigger('', 'redo')" title="やり直し">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z" />
+      </svg>
+    </button>
+    <div class="toolbar-separator"></div>
+    <button class="icon-button" onclick="saveFile()" title="名前を付けて保存">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm2 16H5V5h11.17L19 7.83V19zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM6 6h9v4H6z" />
+      </svg>
+    </button>
+    <button class="icon-button" onclick="clearEditor()" title="エディタの内容をクリア">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+      </svg>
+    </button>
+    <div class="toolbar-separator"></div>
+    <button class="icon-button" onclick="editor.trigger('', 'actions.find')" title="検索">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+      </svg>
+    </button>
+    <button class="icon-button" onclick="editor.trigger('', 'editor.action.startFindReplaceAction')" title="置換">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M11 6c1.38 0 2.63.56 3.54 1.46L12 10h6V4l-2.05 2.05C14.68 4.78 12.93 4 11 4c-3.53 0-6.43 2.61-6.92 6H6.1c.46-2.28 2.48-4 4.9-4zm5.64 9.14c.66-.9 1.12-1.97 1.28-3.14H15.9c-.46 2.28-2.48 4-4.9 4-1.38 0-2.63-.56-3.54-1.46L10 12H4v6l2.05-2.05C7.32 17.22 9.07 18 11 18c1.55 0 2.98-.51 4.14-1.36L20 21.49 21.49 20l-4.85-4.86z" />
+      </svg>
+    </button>
+    <div class="toolbar-separator"></div>
+    <button class="icon-button" onclick="toggleBookmark()" title="ブックマークの設定/解除">
+      <svg viewBox="0 0 24 24">
+        <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" />
+      </svg>
+    </button>
+    <button class="icon-button" onclick="goToNextBookmark()" title="次のブックマークへ">
+      <svg viewBox="0 0 24 24">
+        <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+      </svg>
+    </button>
+    <button class="icon-button" onclick="goToPreviousBookmark()" title="前のブックマークへ">
+      <svg viewBox="0 0 24 24">
+        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+      </svg>
+    </button>
+    <button class="icon-button" onclick="clearAllBookmarks()" title="すべてのブックマークを解除">
+      <svg viewBox="0 0 24 24">
+        <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" />
+        <path d="M14.5 9.5L12 12l2.5 2.5-1 1L11 13l-2.5 2.5-1-1L10 12 7.5 9.5l1-1L11 11l2.5-2.5z" fill="white" />
+      </svg>
+    </button>
+    <div class="toolbar-separator"></div>
+    <button class="icon-button" onclick="toggleDiffEditor()" title="オリジナルとの差分表示" id="diffButton">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 20V4h16v16H4zM7 8h2v8H7zm4-2h2v12h-2zm4 4h2v4h-2z" />
+      </svg>
+    </button>
+  </div>
+  <div id="editor-container">
+    <div id="editor"></div>
+    <div id="diffEditor"></div>
+    <div class="drop-overlay">
+      <div class="drop-message">ファイルをドロップしてください</div>
+    </div>
+  </div>
+</body>
+
+<style>
+  #toolbar {
+    padding: 4px;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+  }
+
+  #editor-container {
+    flex: 1;
+    position: relative;
+    height: calc(100vh - 40px);
+  }
+
+  #editor,
+  #diffEditor {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #ccc;
+  }
+
+  #diffEditor {
+    display: none;
+  }
+
+  #toolbar select,
+  #toolbar button {
+    margin-right: 5px;
+    padding: 3px;
+  }
+
+  .toolbar-group {
+    display: inline-flex;
+    margin-right: 1px;
+    align-items: center;
+  }
+
+  .toolbar-group label {
+    margin-right: 1px;
+  }
+
+  .icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 2px;
+    margin: 0 1px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  .icon-button:hover {
+    background-color: #ddd;
+    border-radius: 3px;
+  }
+
+  .icon-button svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+  }
+
+  .icon-button.active {
+    background-color: #ddd;
+    border-radius: 3px;
+  }
+
+  .drop-overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+  }
+
+  .drop-overlay.active {
+    display: flex;
+    opacity: 1;
+  }
+
+  .toolbar-separator {
+    width: 1px;
+    height: 24px;
+    background-color: #ccc;
+    margin: 0 3px;
+  }
+
+  .bookmark-glyph {
+    position: relative;
+    margin-left: 0 !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .bookmark-glyph::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 2px;
+    width: 12px;
+    height: 16px;
+    background: #4169E1;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z'/%3E%3C/svg%3E") center/contain no-repeat;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z'/%3E%3C/svg%3E") center/contain no-repeat;
+  }
+
+  .function-separator {
+    border-top: 1px solid #000;
+    margin-top: 0px;
+    padding-top: 0px;
+  }
+</style>
+
+<script>
+  let editor;
+  let diffEditor;
+  let currentFileName = null;
+  let originalContent = '';
+  let isDiffMode = false;  // 差分表示モードのフラグを復活
+  let bookmarkLines = new Set(); // ブックマークが設定された行を管理
+  const editorDecorations = new WeakMap(); // WeakMapを追加
+
+  // 言語ごとの関数区切りパターン
+  const functionPatterns = {
+    'vb': /^\s*(private\s+|public\s+|protected\s+|friend\s+)?(function|sub|property)\s+/i,
+    'sql': /^\s*(create\s+)?(procedure|function|trigger|view)\s+/i,
+    'javascript': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
+    'html': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
+    'pli': /^\s*[\w$]+:\s*proc(?:edure)?\s+/i
+  };
+
+  // 関数区切り線を追加
+  function updateFunctionDecorations(targetEditor) {
+    const languageId = targetEditor.getModel().getLanguageId();
+    const pattern = functionPatterns[languageId];
+
+    // 現在のエディタの装飾情報を取得（なければ空配列）
+    const currentDecorations = editorDecorations.get(targetEditor) || [];
+
+    if (!pattern) {
+      targetEditor.deltaDecorations(currentDecorations, []);
+      editorDecorations.set(targetEditor, []);
+      return;
+    }
+
+    const text = targetEditor.getValue();
+    const lines = text.split('\n');
+    const newDecorations = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].match(pattern)) {
+        newDecorations.push({
+          range: new monaco.Range(i + 1, 1, i + 1, 1),
+          options: {
+            isWholeLine: true,
+            className: 'function-separator',
+          }
+        });
+      }
+    }
+
+    // 新しい装飾情報を保存
+    const decorationIds = targetEditor.deltaDecorations(currentDecorations, newDecorations);
+    editorDecorations.set(targetEditor, decorationIds);
+  }
+
+  // バイト配列がUTF-8かどうかを判定する
+  function isUtf8(bytes) {
+    let i = 0;
+    while (i < bytes.length) {
+      if (bytes[i] === 0x00) return false; // nullバイトがあればSJISの可能性が高い
+
+      if ((bytes[i] & 0x80) === 0) { // ASCII
+        i++;
+      } else if ((bytes[i] & 0xE0) === 0xC0) { // 2バイト文字
+        if (i + 1 >= bytes.length) return false;
+        if ((bytes[i + 1] & 0xC0) !== 0x80) return false;
+        i += 2;
+      } else if ((bytes[i] & 0xF0) === 0xE0) { // 3バイト文字
+        if (i + 2 >= bytes.length) return false;
+        if ((bytes[i + 1] & 0xC0) !== 0x80) return false;
+        if ((bytes[i + 2] & 0xC0) !== 0x80) return false;
+        i += 3;
+      } else if ((bytes[i] & 0xF8) === 0xF0) { // 4バイト文字
+        if (i + 3 >= bytes.length) return false;
+        if ((bytes[i + 1] & 0xC0) !== 0x80) return false;
+        if ((bytes[i + 2] & 0xC0) !== 0x80) return false;
+        if ((bytes[i + 3] & 0xC0) !== 0x80) return false;
+        i += 4;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // 概要: ファイルの文字コードを自動判別する
+  async function detectEncoding(file) {
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+
+    // UTF-8のBOMチェック
+    if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+      return 'utf8';
+    }
+
+    // UTF-8として妥当かチェック
+    if (isUtf8(bytes)) {
+      return 'utf8';
+    }
+
+    // それ以外はSJISと判断
+    return 'sjis';
+  }
+
+  // 概要: ファイルの内容を指定された文字コードで読み込む
+  async function readFileContent(file, encoding) {
+    const buffer = await file.arrayBuffer();
+    const decoder = new TextDecoder(encoding === 'utf8' ? 'utf-8' : 'shift-jis');
+    return decoder.decode(buffer);
+  }
+
+  require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
+
+  require(['vs/editor/editor.main'], function () {
+    // PL/I言語の定義
+    monaco.languages.register({ id: 'pli' });
+
+    // PL/Iのシンタックスハイライトルールを定義
+    monaco.languages.setMonarchTokensProvider('pli', {
+      defaultToken: '',
+      ignoreCase: true,
+
+      // キーワード定義
+      keywords: [
+        'PROC', 'DECLARE', 'BEGIN', 'END', 'DO', 'TO', 'BY', 'WHILE', 'UNTIL', 'END', 'LEAVE',
+        'IF', 'THEN', 'ELSE', 'ENDIF', 'SELECT', 'WHEN', 'OTHER', 'GO', 'TO', 'CALL', 'RETURN',
+        'PUT', 'GET', 'SKIP', 'EDIT', 'PAGE', 'LIST', 'DATA', 'FLOW', 'BINARY', 'BIT',
+        'CHARACTER', 'DECIMAL', 'FLOAT', 'FIXED', 'INITIAL', 'STATIC',
+        'AUTOMATIC',
+      ],
+
+      tokenizer: {
+        root: [
+          // コメント
+          [/\*.*$/, 'comment'],           // * で始まる行末までをコメントとして扱う
+          [/「/, 'comment', '@comment'],   // 「でコメント開始
+
+          // 文字列
+          [/"([^"\\]|\\.)*$/, 'string.invalid'],  // 閉じていない文字列
+          [/'([^'\\]|\\.)*$/, 'string.invalid'],  // 閉じていない文字列
+          [/"/, 'string', '@string_double'],      // "で始まる文字列
+          [/'/, 'string', '@string_single'],      // 'で始まる文字列
+
+          // 数値
+          [/[0-9]+/, 'number'],          // 整数
+          [/[0-9]+\.[0-9]+/, 'number'],  // 小数
+
+          // 識別子とキーワード
+          [/[a-zA-Z_$][\w$]*/, {
+            cases: {
+              '@keywords': 'keyword',     // キーワードリストに含まれる場合
+              '@default': 'identifier'    // それ以外は識別子として扱う
+            }
+          }]
+        ],
+
+        // コメントの状態
+        comment: [
+          [/[^」]+/, 'comment'],         // 」以外の文字列
+          [/」/, 'comment', '@pop'],     // 」でコメント終了
+          [/./, 'comment']               // その他の文字
+        ],
+
+        // 文字列の状態（ダブルクォート）
+        string_double: [
+          [/[^\\"]+/, 'string'],         // 文字列の内容
+          [/"/, 'string', '@pop'],       // "で文字列終了
+          [/./, 'string']                // その他の文字
+        ],
+
+        // 文字列の状態（シングルクォート）
+        string_single: [
+          [/[^\\']+/, 'string'],         // 文字列の内容
+          [/'/, 'string', '@pop'],       // 'で文字列終了
+          [/./, 'string']                // その他の文字
+        ]
+      }
+    });
+
+    // PL/Iもどきの言語設定
+    monaco.languages.setLanguageConfiguration('pli', {
+      comments: {
+        lineComment: '*',
+        blockComment: ['「', '」']
+      },
+      brackets: [
+        ['{', '}'],
+        ['[', ']'],
+        ['(', ')']
+      ],
+      autoClosingPairs: [
+        { open: '{', close: '}' },
+        { open: '[', close: ']' },
+        { open: '(', close: ')' },
+        { open: '"', close: '"' },
+        { open: '\'', close: '\'' },
+        { open: '「', close: '」' }
+      ],
+      surroundingPairs: [
+        { open: '{', close: '}' },
+        { open: '[', close: ']' },
+        { open: '(', close: ')' },
+        { open: '"', close: '"' },
+        { open: '\'', close: '\'' },
+        { open: '「', close: '」' }
+      ]
+    });
+
+    // 通常のエディタを作成
+    editor = monaco.editor.create(document.getElementById('editor'), {
+      value: '',
+      language: 'plaintext',
+      theme: 'vs',
+      lineNumbers: 'on',
+      glyphMargin: true,
+      folding: true
+    });
+
+    // ドラッグ&ドロップの処理
+    const editorContainer = document.getElementById('editor-container');
+    const dropOverlay = document.querySelector('.drop-overlay');
+    let dragCounter = 0;
+
+    // ファイルをドロップするときの処理
+    editorContainer.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      dragCounter++;
+      if (dragCounter === 1) {
+        dropOverlay.classList.add('active');
+      }
+    });
+
+    // ファイルをドロップ中の処理
+    editorContainer.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    // ファイルをドロップしたときの処理
+    editorContainer.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter === 0) {
+        dropOverlay.classList.remove('active');
+      }
+    });
+
+    // ファイルをドロップするときの処理
+    editorContainer.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      dropOverlay.classList.remove('active');
+
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        // ブックマークをクリア
+        clearAllBookmarks();
+
+        currentFileName = file.name;
+        document.title = file.name;
+
+        // 文字コードを自動判別
+        const detectedEncoding = await detectEncoding(file);
+        document.getElementById('encodingSelector').value = detectedEncoding;
+
+        // ファイルを読み込む
+        const content = await readFileContent(file, detectedEncoding);
+        originalContent = content;
+        editor.setValue(content);
+
+        // ファイル拡張子に基づいて言語を設定
+        const extension = file.name.split('.').pop().toLowerCase();
+        const languageMap = {
+          'js': 'javascript',
+          'html': 'html',
+          'css': 'css',
+          'vb': 'vb',
+          'bas': 'vb',
+          'cls': 'vb',
+          'vbs': 'vb',
+          'csv': 'csv',
+          'txt': 'plaintext',
+          'sql': 'sql',
+          'ipo': 'pli'
+        };
+
+        const currentLanguage = languageMap[extension] || 'plaintext';
+        document.getElementById('languageSelector').value = currentLanguage;
+        monaco.editor.setModelLanguage(editor.getModel(), currentLanguage);
+
+        if (isDiffMode) {
+          updateDiffEditor();
+        }
+      }
+    });
+
+    // エディタの内容変更イベントをリッスン
+    editor.getModel().onDidChangeContent((e) => {
+      // 変更された行の情報を取得して、ブックマークの位置を更新
+      for (const change of e.changes) {
+        const startLineNumber = change.range.startLineNumber;
+        const endLineNumber = change.range.endLineNumber;
+        const lineCount = change.text.split('\n').length - 1;
+
+        updateBookmarkPositions(startLineNumber, endLineNumber, lineCount);
+      }
+    });
+
+    // エディタの内容が変更されたときに区切り線を更新
+    editor.onDidChangeModelContent(() => {
+      updateFunctionDecorations(editor);
+    });
+
+    // 言語が変更されたときに区切り線を更新
+    editor.onDidChangeModelLanguage(() => {
+      updateFunctionDecorations(editor);
+    });
+
+  });
+
+  // 概要: 差分表示モードの切り替えを行う
+  function toggleDiffEditor() {
+    isDiffMode = !isDiffMode;
+    const editorContainer = document.getElementById('editor-container');
+    const diffButton = document.getElementById('diffButton');
+
+    if (isDiffMode) {
+      // 差分エディタを作成
+      diffEditor = monaco.editor.createDiffEditor(editorContainer, {
+        // オプション設定
+        enableSplitViewResizing: true,
+        renderSideBySide: true,
+        originalEditable: false,  // 左側（Original Editor）を編集不可に設定
+        glyphMargin: true  // Modified Editorの行番号横のアイコン表示のために必要
+      });
+
+      // 現在の言語設定を取得
+      const currentLanguage = editor.getModel().getLanguageId();
+
+      // 元のコンテンツと現在のコンテンツを設定（同じ言語を適用）
+      const originalModel = monaco.editor.createModel(originalContent, currentLanguage);
+      const modifiedModel = editor.getModel();
+      diffEditor.setModel({
+        original: originalModel,
+        modified: modifiedModel
+      });
+
+      // 関数区切り線を両方のエディタに追加
+      updateFunctionDecorations(diffEditor.getOriginalEditor());
+      updateFunctionDecorations(diffEditor.getModifiedEditor());
+
+      // Modified Editorにブックマークの装飾を適用
+      updateBookmarkDecorations(diffEditor.getModifiedEditor());
+
+      // 差分エディタのコンテンツ変更時に更新
+      diffEditor.getModifiedEditor().onDidChangeModelContent(() => {
+        updateFunctionDecorations(diffEditor.getModifiedEditor());
+        updateBookmarkDecorations(diffEditor.getModifiedEditor());
+      });
+
+      // 元のエディタを非表示
+      editor.getContainerDomNode().style.display = 'none';
+      diffButton.classList.add('active');
+    } else {
+      // 差分エディタを破棄
+      if (diffEditor) {
+        const modifiedModel = diffEditor.getModifiedEditor().getModel();
+        diffEditor.dispose();
+        // 修正されたモデルを保持
+        editor.setModel(modifiedModel);
+      }
+
+      // 元のエディタを表示
+      editor.getContainerDomNode().style.display = 'block';
+      editor.layout();
+      diffButton.classList.remove('active');
+      
+      // 通常エディタのブックマークを更新
+      updateBookmarkDecorations(editor);
+    }
+  }
+
+  // 概要: エディタの言語モードを変更する
+  function changeLanguage() {
+    const selectedLanguage = document.getElementById('languageSelector').value;
+    if (editor) {
+      monaco.editor.setModelLanguage(editor.getModel(), selectedLanguage);
+      if (isDiffMode) {
+        updateDiffEditor();
+      }
+    }
+  }
+
+  // 概要: エディタのタブサイズを変更する
+  function changeTabSize() {
+    const selectedTabSize = parseInt(document.getElementById('tabSizeSelector').value);
+    if (editor) {
+      editor.getModel().updateOptions({ tabSize: selectedTabSize });
+      if (isDiffMode) {
+        const diffModel = diffEditor.getModel();
+        diffModel.modified.updateOptions({ tabSize: selectedTabSize });
+        diffModel.original.updateOptions({ tabSize: selectedTabSize });
+      }
+    }
+  }
+
+  // 概要: 現在のエディタの内容をファイルとして保存する
+  async function saveFile() {
+    const content = isDiffMode ? diffEditor.getModifiedEditor().getValue() : editor.getValue();
+    const encoding = document.getElementById('encodingSelector').value;
+
+    try {
+      // UTF-8 → 選択された文字コードに変換
+      let finalArray;
+      if (encoding === 'sjis') {
+        const shiftJisArray = Encoding.convert(Encoding.stringToCode(content), 'SJIS');
+        finalArray = new Uint8Array(shiftJisArray);
+      } else {
+        finalArray = new TextEncoder().encode(content);
+      }
+
+      // Blobを作成して保存
+      const blob = new Blob([finalArray], { type: 'text/plain' });
+      const a = document.createElement('a');
+      const languageMap = {
+        'javascript': '.js',
+        'html': '.html',
+        'css': '.css',
+        'vb': '.vb',
+        'csv': '.csv',
+        'plaintext': '.txt',
+        'sql': '.sql',
+        'pli': '.ipo'
+      };
+
+      const currentLanguage = editor.getModel().getLanguageId();
+      const extension = languageMap[currentLanguage] || '.txt';
+      const fileName = currentFileName || `untitled${extension}`;
+
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch (error) {
+      console.error('ファイル保存エラー:', error);
+      alert('ファイルの保存中にエラーが発生しました。');
+    }
+  }
+
+  // 概要: エディタの内容をクリアし、初期状態に戻す
+  function clearEditor() {
+    if (confirm('エディタの内容をクリアしますか？\nクリアすればundoは出来ません')) {
+      location.reload();
+    }
+  }
+
+  // 概要: ブックマークの設定/解除を切り替える
+  function toggleBookmark() {
+    const targetEditor = isDiffMode ? diffEditor.getModifiedEditor() : editor;
+    const position = targetEditor.getPosition();
+    const lineNumber = position.lineNumber;
+    const column = position.column;
+
+    if (bookmarkLines.has(lineNumber)) {
+      bookmarkLines.delete(lineNumber);
+    } else {
+      bookmarkLines.add(lineNumber);
+    }
+    updateBookmarkDecorations(targetEditor);
+
+    targetEditor.focus();
+    targetEditor.setPosition({ lineNumber, column });
+  }
+
+  // 概要: 次のブックマークにジャンプ
+  function goToNextBookmark() {
+    const targetEditor = isDiffMode ? diffEditor.getModifiedEditor() : editor;
+    const currentLine = targetEditor.getPosition().lineNumber;
+    const bookmarkArray = Array.from(bookmarkLines).sort((a, b) => a - b);
+
+    // 現在の行より後にあるブックマークを探す
+    const nextBookmark = bookmarkArray.find(line => line > currentLine);
+
+    if (nextBookmark) {
+      // 次のブックマークへジャンプ
+      targetEditor.setPosition({ lineNumber: nextBookmark, column: 1 });
+      targetEditor.revealLineInCenter(nextBookmark);
+    } else if (bookmarkArray.length > 0) {
+      // 最後まで行ったら最初のブックマークへ
+      targetEditor.setPosition({ lineNumber: bookmarkArray[0], column: 1 });
+      targetEditor.revealLineInCenter(bookmarkArray[0]);
+    }
+    targetEditor.focus(); // エディタにフォーカスを戻す
+  }
+
+  // 概要: 前のブックマークにジャンプ
+  function goToPreviousBookmark() {
+    const targetEditor = isDiffMode ? diffEditor.getModifiedEditor() : editor;
+    const currentLine = targetEditor.getPosition().lineNumber;
+    const bookmarkArray = Array.from(bookmarkLines).sort((a, b) => b - a);
+
+    // 現在の行より前にあるブックマークを探す
+    const prevBookmark = bookmarkArray.find(line => line < currentLine);
+
+    if (prevBookmark) {
+      // 前のブックマークへジャンプ
+      targetEditor.setPosition({ lineNumber: prevBookmark, column: 1 });
+      targetEditor.revealLineInCenter(prevBookmark);
+    } else if (bookmarkArray.length > 0) {
+      // 最初まで行ったら最後のブックマークへ
+      targetEditor.setPosition({ lineNumber: bookmarkArray[0], column: 1 });
+      targetEditor.revealLineInCenter(bookmarkArray[0]);
+    }
+    targetEditor.focus(); // エディタにフォーカスを戻す
+  }
+
+  // 概要: すべてのブックマークを解除
+  function clearAllBookmarks() {
+    bookmarkLines.clear();
+    updateBookmarkDecorations();
+    editor.focus(); // エディタにフォーカスを戻す
+  }
+
+  // 概要: ブックマークの装飾を更新
+  function updateBookmarkDecorations(targetEditor = editor) {
+    const decorations = Array.from(bookmarkLines).map(line => ({
+      range: new monaco.Range(line, 1, line, 1),
+      options: {
+        glyphMarginClassName: 'bookmark-glyph'
+      }
+    }));
+
+    // 既存の装飾をすべて削除して新しい装飾を設定
+    const oldDecorations = targetEditor.getModel().getAllDecorations()
+      .filter(d => d.options.glyphMarginClassName === 'bookmark-glyph')
+      .map(d => d.id);
+
+    targetEditor.deltaDecorations(oldDecorations, decorations);
+  }
+
+  // 概要: 行の追加/削除に応じてブックマークの位置を更新
+  function updateBookmarkPositions(startLine, endLine, lineCount) {
+    const oldBookmarks = Array.from(bookmarkLines);
+    bookmarkLines.clear();
+
+    for (const line of oldBookmarks) {
+      if (line < startLine) {
+        // 変更された範囲より前の行は変更なし
+        bookmarkLines.add(line);
+      } else {
+        // 変更された範囲以降の行は、追加/削除された行数分ずらす
+        const newLine = line + lineCount - (endLine - startLine);
+        if (newLine > 0) {
+          bookmarkLines.add(newLine);
+        }
+      }
+    }
+  }
+</script>

@@ -705,6 +705,16 @@
       // プレビューを更新
       updatePreview();
     });
+
+    // ウィンドウのリサイズイベントを監視し、エディタを再描画する
+    window.addEventListener('resize', () => {
+      if (editor) {
+        editor.layout();
+      }
+      if (diffEditor) {
+        diffEditor.layout();
+      }
+    });
   });
 
   // 概要: 差分表示モードの切り替えを行う
@@ -789,38 +799,12 @@
 
   // 概要: 現在のエディタの内容をファイルとして保存する
   async function saveFile() {
-    const content = isDiffMode ? diffEditor.getModifiedEditor().getValue() : editor.getValue();
-    const encoding = document.getElementById('encodingSelector').value;
+    const [finalArray, fileName] = isDiffMode ? createDiffFileData() : createFileData();
 
     try {
-      // UTF-8 → 選択された文字コードに変換
-      let finalArray;
-      if (encoding === 'sjis') {
-        const shiftJisArray = Encoding.convert(Encoding.stringToCode(content), 'SJIS');
-        finalArray = new Uint8Array(shiftJisArray);
-      } else {
-        finalArray = new TextEncoder().encode(content);
-      }
-
       // Blobを作成して保存
       const blob = new Blob([finalArray], { type: 'text/plain' });
       const a = document.createElement('a');
-      const languageMap = {
-        'javascript': '.js',
-        'html': '.html',
-        'css': '.css',
-        'vb': '.vb',
-        'csv': '.csv',
-        'plaintext': '.txt',
-        'sql': '.sql',
-        'markdown': '.md',
-        'pli': '.ipo'
-      };
-
-      const currentLanguage = editor.getModel().getLanguageId();
-      const extension = languageMap[currentLanguage] || '.txt';
-      const fileName = currentFileName || `untitled${extension}`;
-
       a.href = URL.createObjectURL(blob);
       a.download = fileName;
       a.style.display = 'none';
@@ -832,6 +816,61 @@
       console.error('ファイル保存エラー:', error);
       alert('ファイルの保存中にエラーが発生しました。');
     }
+  }
+
+  function createDiffFileData() {
+    const currentLanguage = editor.getModel().getLanguageId();
+    const originalText = diffEditor.getOriginalEditor().getValue()
+      .split('\n').map(line => ' ' + line).join('\n');
+    const modifiedText = diffEditor.getModifiedEditor().getValue()
+      .split('\n').map(line => ' ' + line).join('\n');
+    const content = `
+\`\`\`${currentLanguage}
+${originalText}
+\`\`\`
+
+\`\`\`${currentLanguage}
+${modifiedText}
+\`\`\`
+`;
+
+    const finalArray = new TextEncoder().encode(content);
+    let fileName;
+    if (currentFileName) {
+      // 現在のファイル名から拡張子を除去
+      const baseFileName = currentFileName.replace(/\.[^/.]+$/, '');
+      fileName = baseFileName + '.diff';
+    } else {
+      fileName = '差分.diff';
+    }
+    return [finalArray, fileName];
+  }
+
+  function createFileData() {
+    const content = editor.getValue();
+    const encoding = document.getElementById('encodingSelector').value;
+    let finalArray;
+    if (encoding === 'sjis') {
+      const shiftJisArray = Encoding.convert(Encoding.stringToCode(content), 'SJIS');
+      finalArray = new Uint8Array(shiftJisArray);
+    } else {
+      finalArray = new TextEncoder().encode(content);
+    }
+    const languageMap = {
+      'javascript': '.js',
+      'html': '.html',
+      'css': '.css',
+      'vb': '.vb',
+      'csv': '.csv',
+      'plaintext': '.txt',
+      'sql': '.sql',
+      'markdown': '.md',
+      'pli': '.ipo'
+    };
+    const currentLanguage = editor.getModel().getLanguageId();
+    const extension = languageMap[currentLanguage] || '.txt';
+    const fileName = currentFileName || `untitled${extension}`;
+    return [finalArray, fileName];
   }
 
   // 概要: エディタの内容をクリアし、初期状態に戻す
@@ -904,12 +943,12 @@
   // 概要: すべてのブックマークを解除
   function clearAllBookmarks() {
     bookmarkLines.clear();
-    updateBookmarkDecorations();
+    updateBookmarkDecorations(editor);
     editor.focus(); // エディタにフォーカスを戻す
   }
 
   // 概要: ブックマークの装飾を更新
-  function updateBookmarkDecorations(targetEditor = editor) {
+  function updateBookmarkDecorations(targetEditor) {
     const decorations = Array.from(bookmarkLines).map(line => ({
       range: new monaco.Range(line, 1, line, 1),
       options: {

@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monaco Editor</title>
   <script src="https://cdn.jsdelivr.net/npm/encoding-japanese/encoding.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
   <script src="https://unpkg.com/monaco-editor@0.33.0/min/vs/loader.js"></script>
 </head>
 
@@ -20,6 +23,7 @@
         <option value="javascript">JavaScript</option>
         <option value="css">CSS</option>
         <option value="vb">VB</option>
+        <option value="markdown">Markdown</option>
         <option value="sql">SQL</option>
       </select>
     </div>
@@ -110,6 +114,7 @@
   </div>
   <div id="editor-container">
     <div id="editor"></div>
+    <div id="preview"></div>
     <div id="diffEditor"></div>
     <div class="drop-overlay">
       <div class="drop-message">ファイルをドロップしてください</div>
@@ -127,20 +132,43 @@
   }
 
   #editor-container {
-    flex: 1;
     position: relative;
-    height: calc(100vh - 40px);
+    height: calc(100vh - 50px);
+    width: 100%;
   }
 
-  #editor,
-  #diffEditor {
+  #editor {
     width: 100%;
     height: 100%;
-    border: 1px solid #ccc;
+  }
+
+  #editor.with-preview {
+    width: 50%;
+  }
+
+  #preview {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    padding: 20px;
+    overflow-y: auto;
+    border-left: 1px solid #ccc;
+    background-color: white;
+    box-sizing: border-box;
+    display: none;
+    z-index: 100;
+  }
+
+  #preview.visible {
+    display: block;
   }
 
   #diffEditor {
     display: none;
+    width: 100%;
+    height: 100%;
   }
 
   #toolbar select,
@@ -241,6 +269,72 @@
     margin-top: 0px;
     padding-top: 0px;
   }
+
+  /* マークダウンプレビューのスタイル */
+  #preview pre {
+    background-color: #f5f5f5;
+    padding: 1em;
+    border-radius: 5px;
+    overflow-x: auto;
+  }
+
+  #preview code {
+    background-color: #f5f5f5;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-size: 14px;
+  }
+
+  #preview blockquote {
+    background-color: #f9f9f9;
+    border-left: 4px solid #e0e0e0;
+    padding: 10px 15px;
+    margin: 20px 0;
+    font-style: italic;
+    color: #333;
+  }
+
+  #preview table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  #preview th,
+  #preview td {
+    border: 1px solid #ccc;
+    padding: 2px;
+  }
+
+  #preview th {
+    background-color: #f2f2f2;
+  }
+
+  #preview td {
+    background-color: #ffffff;
+  }
+
+  #preview h1,
+  #preview h2,
+  #preview h3,
+  #preview h4,
+  #preview h5,
+  #preview h6 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    color: #333;
+  }
+
+  #preview p {
+    margin: 1em 0;
+    line-height: 1.5;
+  }
+
+  #preview ul,
+  #preview ol {
+    margin: 1em 0;
+    padding-left: 2em;
+  }
 </style>
 
 <script>
@@ -263,6 +357,10 @@
 
   // 関数区切り線を追加
   function updateFunctionDecorations(targetEditor) {
+    if (!targetEditor || !targetEditor.getModel()) {
+      return;
+    }
+
     const languageId = targetEditor.getModel().getLanguageId();
     const pattern = functionPatterns[languageId];
 
@@ -298,6 +396,11 @@
 
   // バイト配列がUTF-8かどうかを判定する
   function isUtf8(bytes) {
+    // UTF-8のBOMチェック
+    if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+      return true;
+    }
+
     let i = 0;
     while (i < bytes.length) {
       if (bytes[i] === 0x00) return false; // nullバイトがあればSJISの可能性が高い
@@ -326,23 +429,54 @@
     return true;
   }
 
+  // プレビューを更新する関数
+  function updatePreview() {
+    const language = document.getElementById('languageSelector').value;
+    const preview = document.getElementById('preview');
+    const editorDiv = document.getElementById('editor');
+
+    if (language !== 'markdown' || isDiffMode) {
+      preview.classList.remove('visible');
+      editorDiv.classList.remove('with-preview');
+      return;
+    }
+    preview.classList.add('visible');
+    editorDiv.classList.add('with-preview');
+
+    // marked.jsの設定
+    marked.setOptions({
+      breaks: true,  // 改行を有効に
+      gfm: true     // GitHub Flavored Markdownを有効に
+    });
+    const content = editor.getValue();
+    preview.innerHTML = marked.parse(content || '');
+
+    // コードブロックにシンタックスハイライトを適用
+    document.querySelectorAll('#preview pre code').forEach((block) => {
+      hljs.highlightElement(block);
+    });
+  }
+
+  // 言語が変更されたときの処理
+  function changeLanguage() {
+    const language = document.getElementById('languageSelector').value;
+
+    if (editor && editor.getModel()) {
+      monaco.editor.setModelLanguage(editor.getModel(), language);
+      // エディタとモデルが存在する場合のみ関数装飾を更新
+      updateFunctionDecorations(editor);
+    }
+    // 言語に関係なくプレビューを更新
+    updatePreview();
+    // エディタのレイアウトを更新
+    editor.layout();
+  }
+
   // 概要: ファイルの文字コードを自動判別する
   async function detectEncoding(file) {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
-
-    // UTF-8のBOMチェック
-    if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
-      return 'utf8';
-    }
-
-    // UTF-8として妥当かチェック
-    if (isUtf8(bytes)) {
-      return 'utf8';
-    }
-
-    // それ以外はSJISと判断
-    return 'sjis';
+    return isUtf8(bytes) ? 'utf8' : 'sjis';
   }
 
   // 概要: ファイルの内容を指定された文字コードで読み込む
@@ -446,7 +580,13 @@
         { open: '"', close: '"' },
         { open: '\'', close: '\'' },
         { open: '「', close: '」' }
-      ]
+      ],
+      folding: {
+        markers: {
+          start: new RegExp(/^\s*[\w$]+:\s*proc(?:edure)?\s+/i),
+          end: new RegExp(/^\s*end\s+proc/i)
+        }
+      }
     });
 
     // 通常のエディタを作成
@@ -523,6 +663,7 @@
           'csv': 'csv',
           'txt': 'plaintext',
           'sql': 'sql',
+          'md': 'markdown',
           'ipo': 'pli'
         };
 
@@ -530,9 +671,10 @@
         document.getElementById('languageSelector').value = currentLanguage;
         monaco.editor.setModelLanguage(editor.getModel(), currentLanguage);
 
-        if (isDiffMode) {
-          updateDiffEditor();
-        }
+        // マークダウン画面を必要に応じて更新
+        updatePreview();
+        // エディタのレイアウトを更新
+        editor.layout();
       }
     });
 
@@ -548,25 +690,29 @@
       }
     });
 
-    // エディタの内容が変更されたときに区切り線を更新
+    // エディタの内容が変更されたときの処理
     editor.onDidChangeModelContent(() => {
+      // 関数区切り線を更新
       updateFunctionDecorations(editor);
+      // プレビューを更新
+      updatePreview();
     });
 
-    // 言語が変更されたときに区切り線を更新
+    // エディタの言語が変更されたときの処理
     editor.onDidChangeModelLanguage(() => {
+      // 関数区切り線を更新
       updateFunctionDecorations(editor);
+      // プレビューを更新
+      updatePreview();
     });
-
   });
 
   // 概要: 差分表示モードの切り替えを行う
   function toggleDiffEditor() {
     isDiffMode = !isDiffMode;
-    const editorContainer = document.getElementById('editor-container');
-    const diffButton = document.getElementById('diffButton');
 
     if (isDiffMode) {
+      const editorContainer = document.getElementById('editor-container');
       // 差分エディタを作成
       diffEditor = monaco.editor.createDiffEditor(editorContainer, {
         // オプション設定
@@ -599,10 +745,6 @@
         updateFunctionDecorations(diffEditor.getModifiedEditor());
         updateBookmarkDecorations(diffEditor.getModifiedEditor());
       });
-
-      // 元のエディタを非表示
-      editor.getContainerDomNode().style.display = 'none';
-      diffButton.classList.add('active');
     } else {
       // 差分エディタを破棄
       if (diffEditor) {
@@ -611,29 +753,28 @@
         // 修正されたモデルを保持
         editor.setModel(modifiedModel);
       }
-
-      // 元のエディタを表示
-      editor.getContainerDomNode().style.display = 'block';
-      editor.layout();
-      diffButton.classList.remove('active');
-      
       // 通常エディタのブックマークを更新
       updateBookmarkDecorations(editor);
     }
+
+    const diffButton = document.getElementById('diffButton');
+    if (isDiffMode) {
+      // 元のエディタを非表示
+      editor.getContainerDomNode().style.display = 'none';
+      diffButton.classList.add('active');
+    } else {
+      // 元のエディタを表示
+      editor.getContainerDomNode().style.display = 'block';
+      diffButton.classList.remove('active');
+    }
+
+    // マークダウン画面を必要に応じて更新
+    updatePreview();
+    // エディタのレイアウトを更新
+    editor.layout();
   }
 
   // 概要: エディタの言語モードを変更する
-  function changeLanguage() {
-    const selectedLanguage = document.getElementById('languageSelector').value;
-    if (editor) {
-      monaco.editor.setModelLanguage(editor.getModel(), selectedLanguage);
-      if (isDiffMode) {
-        updateDiffEditor();
-      }
-    }
-  }
-
-  // 概要: エディタのタブサイズを変更する
   function changeTabSize() {
     const selectedTabSize = parseInt(document.getElementById('tabSizeSelector').value);
     if (editor) {
@@ -672,6 +813,7 @@
         'csv': '.csv',
         'plaintext': '.txt',
         'sql': '.sql',
+        'markdown': '.md',
         'pli': '.ipo'
       };
 

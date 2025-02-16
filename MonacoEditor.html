@@ -29,7 +29,7 @@
     </div>
     <div class="toolbar-separator"></div>
     <div class="toolbar-group">
-      <label for="tabSizeSelector" title="(SHIFT+)TABキーで字下げします">タブサイズ</label>
+      <label for="tabSizeSelector" title="(SHIFT+)TABキーで字下げします">タブ</label>
       <select id="tabSizeSelector" onchange="changeTabSize()" title="(SHIFT+)TABキーで字下げします">
         <option value="2">2</option>
         <option value="4">4</option>
@@ -37,8 +37,8 @@
     </div>
     <div class="toolbar-separator"></div>
     <div class="toolbar-group">
-      <label for="encodingSelector" title="ファイルの文字コード">文字コード</label>
-      <select id="encodingSelector" title="ファイルの文字コード">
+      <label for="encodingSelector" title="ファイル保存時の文字コード">文字</label>
+      <select id="encodingSelector" title="ファイル保存時の文字コード">
         <option value="utf8">UTF8</option>
         <option value="sjis">SJIS</option>
       </select>
@@ -105,11 +105,8 @@
       </svg>
     </button>
     <div class="toolbar-separator"></div>
-    <button class="icon-button" onclick="toggleDiffEditor()" title="オリジナルとの差分表示" id="diffButton">
-      <svg viewBox="0 0 24 24">
-        <path
-          d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 20V4h16v16H4zM7 8h2v8H7zm4-2h2v12h-2zm4 4h2v4h-2z" />
-      </svg>
+    <button class="icon-button" onclick="toggleDiffEditor()" title="新旧差分を表示します" id="diffButton">
+      新旧差分
     </button>
   </div>
   <div id="editor-container">
@@ -212,9 +209,16 @@
     fill: currentColor;
   }
 
-  .icon-button.active {
-    background-color: #ddd;
+  #diffButton.active {
+    background-color: #ccc;
     border-radius: 3px;
+  }
+
+  #diffButton {
+    width: auto;
+    padding: 2px 8px;
+    border: 1px solid #888;
+    border-radius: 5px;
   }
 
   .drop-overlay {

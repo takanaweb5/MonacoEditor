@@ -635,23 +635,34 @@
 
       const file = e.dataTransfer.files[0];
       if (file) {
-        // ブックマークをクリア
-        clearAllBookmarks();
-
         currentFileName = file.name;
         document.title = file.name;
 
         // 文字コードを自動判別
         const detectedEncoding = await detectEncoding(file);
-        document.getElementById('encodingSelector').value = detectedEncoding;
-
         // ファイルを読み込む
+        document.getElementById('encodingSelector').value = detectedEncoding;
         const content = await readFileContent(file, detectedEncoding);
-        originalContent = content;
-        editor.setValue(content);
 
         // ファイル拡張子に基づいて言語を設定
         const extension = file.name.split('.').pop().toLowerCase();
+
+        if (extension === 'diff') {
+          const showDiff = await new Promise(resolve => {
+            if (confirm('差分モードで開きますか？')) {
+              resolve(true);
+            } else {
+              resolve(false);
+            }
+          });
+
+          // 差分モードで開く
+          if (showDiff) {
+            openInDiffMode(content);
+            return;
+          }
+        }
+
         const languageMap = {
           'js': 'javascript',
           'html': 'html',
@@ -670,12 +681,16 @@
         const currentLanguage = languageMap[extension] || 'plaintext';
         document.getElementById('languageSelector').value = currentLanguage;
         monaco.editor.setModelLanguage(editor.getModel(), currentLanguage);
-
-        // マークダウン画面を必要に応じて更新
-        updatePreview();
-        // エディタのレイアウトを更新
-        editor.layout();
+        originalContent = content;
+        editor.setValue(content);
       }
+
+      // ブックマークをクリア
+      clearAllBookmarks();
+      // マークダウン画面を必要に応じて更新
+      updatePreview();
+      // エディタのレイアウトを更新
+      editor.layout();
     });
 
     // エディタの内容変更イベントをリッスン
@@ -716,6 +731,48 @@
       }
     });
   });
+
+  // 差分モードでファイルを開く
+  function openInDiffMode(content) {
+    // 言語判定
+    const languageMatch = content.match(/```(\w+)/);
+    const language = languageMatch ? languageMatch[1] : '';
+
+    // 行ごとに処理
+    const lines = content.split('\n');
+    let blockCnt = 0; // 1:original処理中 3:modified処理中
+    const originalLines = [];
+    const modifiedLines = [];
+
+    for (const line of lines) {
+      if (line.startsWith('```')) {
+        blockCnt++;
+        // ```行はスキップ
+        continue;
+      }
+
+      if (blockCnt === 1) {
+        originalLines.push(line.substring(1));
+      } else if (blockCnt === 3) {
+        modifiedLines.push(line.substring(1));
+      }
+    }
+
+    // 言語を設定
+    const languageSelector = document.getElementById('languageSelector');
+    if (languageSelector && language) {
+      languageSelector.value = language;
+      changeLanguage();
+    }
+
+    // 内容を設定
+    originalContent = originalLines.join('\n');
+    editor.setValue(modifiedLines.join('\n'));
+
+    // 差分エディタを表示
+    isDiffMode = false;
+    toggleDiffEditor();
+  }
 
   // 概要: 差分表示モードの切り替えを行う
   function toggleDiffEditor() {

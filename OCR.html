@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OCR with Tesseract.js</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    #result {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      padding: 10px;
+      width: 98%;
+      height: 200px;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      resize: vertical;
+    }
+
+    #canvas {
+      border: 1px solid #ccc;
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0;
+    }
+
+    button {
+      padding: 2px 10px;
+      margin: 10px 5px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    button:active {
+      background-color: #003d80;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>OCR with Tesseract.js</h1>
+  <canvas id="canvas"></canvas>
+  <button id="execute">実行</button>
+  <textarea id="result" rows="10" cols="50"></textarea>
+  <button id="selectAll">すべて選択</button>
+  <script>
+    const outputDiv = document.getElementById('result');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // function processImage(file) {
+    //   outputDiv.textContent = 'Processing...';
+
+    //   const img = new Image();
+    //   img.src = URL.createObjectURL(file);
+    //   img.onload = () => {
+    //     canvas.width = img.width;
+    //     canvas.height = img.height;
+    //     ctx.drawImage(img, 0, 0);
+
+    //     const worker = Tesseract.createWorker();
+    //     worker.load()
+    //       .then(() => worker.loadLanguage('eng+jpn'))
+    //       .then(() => worker.initialize('eng+jpn'))
+    //       .then(() => worker.recognize(file))
+    //       .then(({ data: { text } }) => {
+    //         outputDiv.textContent = text;
+    //         worker.terminate();
+    //       });
+    //   };
+    // }
+
+    // Handle paste event
+    document.addEventListener('paste', (event) => {
+      const items = event.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const blob = items[i].getAsFile();
+          const url = URL.createObjectURL(blob);
+          loadImage(url);
+        }
+      }
+    });
+
+    // Handle drag and drop
+    canvas.addEventListener('dragover', (event) => {
+      event.preventDefault();
+    });
+
+    canvas.addEventListener('drop', (event) => {
+      event.preventDefault();
+      const file = event.dataTransfer.files[0];
+      if (file && file.type.match('image.*')) {
+        const url = URL.createObjectURL(file);
+        loadImage(url);
+      }
+    });
+
+    function loadImage(url) {
+      const img = new Image();
+      img.src = url;
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+      };
+    }
+
+    // Drag and drop
+    document.addEventListener('dragover', (e) => e.preventDefault());
+    document.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer.files[0]) {
+        loadImage(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Execute button
+    document.getElementById('execute').addEventListener('click', () => {
+      const loadingText = document.createElement('span');
+      loadingText.id = 'loading';
+      loadingText.textContent = '解析中....';
+      loadingText.style.marginLeft = '10px';
+      loadingText.style.color = '#666';
+      document.getElementById('execute').insertAdjacentElement('afterend', loadingText);
+
+      const image = canvas.toDataURL();
+      Tesseract.recognize(
+        image,
+        'jpn',
+        {
+          logger: m => console.log(m)
+        }
+      ).then(({ data: { text } }) => {
+        loadingText.remove();
+        const cleanedText = text.replace(/([^\x01-\x7E\n])\s(?!\s)/g, '$1');
+        outputDiv.value += cleanedText + '\n';
+      });
+    });
+
+    // Select all button
+    document.getElementById('selectAll').addEventListener('click', () => {
+      const resultTextarea = document.getElementById('result');
+      resultTextarea.select();
+    });
+  </script>
+</body>
+
+</html>

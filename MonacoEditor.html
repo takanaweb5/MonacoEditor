@@ -109,10 +109,10 @@
       新旧差分
     </button>
   </div>
-  <div id="editor-container">
+  <div id="editor-container" ondragover="event.preventDefault();" ondragenter="handleDragEnter(event)"
+    ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
     <div id="editor"></div>
     <div id="preview"></div>
-    <div id="diffEditor"></div>
     <div class="drop-overlay">
       <div class="drop-message">ファイルをドロップしてください</div>
     </div>
@@ -160,12 +160,6 @@
 
   #preview.visible {
     display: block;
-  }
-
-  #diffEditor {
-    display: none;
-    width: 100%;
-    height: 100%;
   }
 
   #toolbar select,
@@ -349,22 +343,241 @@
   let isDiffMode = false;  // 差分表示モードのフラグを復活
   let bookmarkLines = new Set(); // ブックマークが設定された行を管理
   const editorDecorations = new WeakMap(); // WeakMapを追加
+  const editorContainer = document.getElementById('editor-container');
 
-  // 言語ごとの関数区切りパターン
-  const functionPatterns = {
-    'vb': /^\s*(private\s+|public\s+|protected\s+|friend\s+)?(function|sub|property)\s+/i,
-    'sql': /^\s*(create\s+)?(procedure|function|trigger|view)\s+/i,
-    'javascript': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
-    'html': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
-    'pli': /^\s*[\w$]+:\s*proc(?:edure)?\s+/i
-  };
+  require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
+  require(['vs/editor/editor.main'], onEditorLoad);
+
+  function onEditorLoad() {
+    // 通常のエディタを作成
+    editor = monaco.editor.create(document.getElementById('editor'), {
+      value: '',
+      language: 'plaintext',
+      theme: 'vs',
+      lineNumbers: 'on',
+      glyphMargin: true,
+      folding: true
+    });
+    // PL/I言語の定義
+    monaco.languages.register({ id: 'pli' });
+
+    // PL/Iのシンタックスハイライトルールを定義
+    monaco.languages.setMonarchTokensProvider('pli', {
+      defaultToken: '',
+      ignoreCase: true,
+
+      // キーワード定義
+      keywords: [
+        'PROC', 'DECLARE', 'BEGIN', 'END', 'DO', 'TO', 'BY', 'WHILE', 'UNTIL', 'END', 'LEAVE',
+        'IF', 'THEN', 'ELSE', 'ENDIF', 'SELECT', 'WHEN', 'OTHER', 'GO', 'TO', 'CALL', 'RETURN',
+        'PUT', 'GET', 'SKIP', 'EDIT', 'PAGE', 'LIST', 'DATA', 'FLOW', 'BINARY', 'BIT',
+        'CHARACTER', 'DECIMAL', 'FLOAT', 'FIXED', 'INITIAL', 'STATIC',
+        'AUTOMATIC',
+      ],
+
+      tokenizer: {
+        root: [
+          // コメント
+          [/\*.*$/, 'comment'],           // * で始まる行末までをコメントとして扱う
+          [/「/, 'comment', '@comment'],   // 「でコメント開始
+
+          // 文字列
+          [/"([^"\\]|\\.)*$/, 'string.invalid'],  // 閉じていない文字列
+          [/'([^'\\]|\\.)*$/, 'string.invalid'],  // 閉じていない文字列
+          [/"/, 'string', '@string_double'],      // "で始まる文字列
+          [/'/, 'string', '@string_single'],      // 'で始まる文字列
+
+          // 数値
+          [/[0-9]+/, 'number'],          // 整数
+          [/[0-9]+\.[0-9]+/, 'number'],  // 小数
+
+          // 識別子とキーワード
+          [/[a-zA-Z_$][\w$]*/, {
+            cases: {
+              '@keywords': 'keyword',     // キーワードリストに含まれる場合
+              '@default': 'identifier'    // それ以外は識別子として扱う
+            }
+          }]
+        ],
+
+        // コメントの状態
+        comment: [
+          [/[^」]+/, 'comment'],         // 」以外の文字列
+          [/」/, 'comment', '@pop'],     // 」でコメント終了
+          [/./, 'comment']               // その他の文字
+        ],
+
+        // 文字列の状態（ダブルクォート）
+        string_double: [
+          [/[^\\"]+/, 'string'],         // 文字列の内容
+          [/"/, 'string', '@pop'],       // "で文字列終了
+          [/./, 'string']                // その他の文字
+        ],
+
+        // 文字列の状態（シングルクォート）
+        string_single: [
+          [/[^\\']+/, 'string'],         // 文字列の内容
+          [/'/, 'string', '@pop'],       // 'で文字列終了
+          [/./, 'string']                // その他の文字
+        ]
+      }
+    });
+
+    // PL/Iもどきの言語設定
+    monaco.languages.setLanguageConfiguration('pli', {
+      comments: {
+        lineComment: '*',
+        blockComment: ['「', '」']
+      },
+      brackets: [
+        ['{', '}'],
+        ['[', ']'],
+        ['(', ')']
+      ],
+      autoClosingPairs: [
+        { open: '{', close: '}' },
+        { open: '[', close: ']' },
+        { open: '(', close: ')' },
+        { open: '"', close: '"' },
+        { open: '\'', close: '\'' },
+        { open: '「', close: '」' }
+      ],
+      surroundingPairs: [
+        { open: '{', close: '}' },
+        { open: '[', close: ']' },
+        { open: '(', close: ')' },
+        { open: '"', close: '"' },
+        { open: '\'', close: '\'' },
+        { open: '「', close: '」' }
+      ],
+      folding: {
+        markers: {
+          start: new RegExp(/^\s*[\w$]+:\s*proc:/i),
+          end: new RegExp(/^\s*end\s+proc/i)
+        }
+      }
+    });
+
+    // エディタの内容変更イベントをリッスン
+    editor.getModel().onDidChangeContent((e) => {
+      // 変更された行の情報を取得して、ブックマークの位置を更新
+      for (const change of e.changes) {
+        const startLineNumber = change.range.startLineNumber;
+        const endLineNumber = change.range.endLineNumber;
+        const lineCount = change.text.split('\n').length - 1;
+        updateBookmarkPositions(startLineNumber, endLineNumber, lineCount);
+      }
+    });
+
+    // エディタの内容が変更されたときの処理
+    editor.onDidChangeModelContent(updateEditorUI);
+    // エディタの言語が変更されたときの処理
+    editor.onDidChangeModelLanguage(updateEditorUI);
+  }
+
+  // エディタのUI更新処理を共通化
+  function updateEditorUI() {
+    // 関数区切り線を更新
+    updateFunctionDecorations(editor);
+    // プレビューを更新
+    updatePreview();
+  }
+
+  // ドラッグ&ドロップの処理
+  const dropOverlay = document.querySelector('.drop-overlay');
+  let dragCounter = 0;
+  function handleDragEnter(e) {
+    e.preventDefault();
+    dragCounter++;
+    if (dragCounter === 1) {
+      dropOverlay.classList.add('active');
+    }
+  }
+  function handleDragLeave(e) {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter === 0) {
+      dropOverlay.classList.remove('active');
+    }
+  }
+  async function handleDrop(e) {
+    e.preventDefault();
+    dragCounter = 0;
+    dropOverlay.classList.remove('active');
+
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      currentFileName = file.name;
+      document.title = file.name;
+
+      // 文字コードを自動判別
+      const detectedEncoding = await detectEncoding(file);
+      // ファイルを読み込む
+      document.getElementById('encodingSelector').value = detectedEncoding;
+      const content = await readFileContent(file, detectedEncoding);
+
+      // ファイル拡張子に基づいて言語を設定
+      const extension = file.name.split('.').pop().toLowerCase();
+
+      if (extension === 'diff') {
+        const showDiff = await new Promise(resolve => {
+          if (confirm('差分モードで開きますか？')) {
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+        });
+
+        // 差分モードで開く
+        if (showDiff) {
+          openInDiffMode(content);
+          return;
+        }
+      }
+
+      const languageMap = {
+        'js': 'javascript',
+        'html': 'html',
+        'css': 'css',
+        'vb': 'vb',
+        'bas': 'vb',
+        'cls': 'vb',
+        'vbs': 'vb',
+        'csv': 'csv',
+        'txt': 'plaintext',
+        'sql': 'sql',
+        'md': 'markdown',
+        'ipo': 'pli'
+      };
+
+      const currentLanguage = languageMap[extension] || 'plaintext';
+      document.getElementById('languageSelector').value = currentLanguage;
+      monaco.editor.setModelLanguage(editor.getModel(), currentLanguage);
+      originalContent = content;
+      editor.setValue(content);
+    }
+
+    // ブックマークをクリア
+    clearAllBookmarks();
+    // マークダウン画面を必要に応じて更新
+    updatePreview();
+    // エディタのレイアウトを更新
+    editor.layout();
+  }
 
   // 関数区切り線を追加
   function updateFunctionDecorations(targetEditor) {
     if (!targetEditor || !targetEditor.getModel()) {
       return;
     }
-
+    // 言語ごとの関数区切りパターン
+    const functionPatterns = {
+      'vb': /^\s*(private\s+|public\s+|protected\s+|friend\s+)?(function|sub|property)\s+/i,
+      'sql': /^\s*(create\s+)?(procedure|function|trigger|view)\s+/i,
+      'javascript': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
+      'html': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
+      'pli': /^\s*[\w$]+:\s*proc:/i
+    };
     const languageId = targetEditor.getModel().getLanguageId();
     const pattern = functionPatterns[languageId];
 
@@ -376,7 +589,6 @@
       editorDecorations.set(targetEditor, []);
       return;
     }
-
     const text = targetEditor.getValue();
     const lines = text.split('\n');
     const newDecorations = [];
@@ -490,250 +702,14 @@
     return decoder.decode(buffer);
   }
 
-  require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
-
-  require(['vs/editor/editor.main'], function () {
-    // PL/I言語の定義
-    monaco.languages.register({ id: 'pli' });
-
-    // PL/Iのシンタックスハイライトルールを定義
-    monaco.languages.setMonarchTokensProvider('pli', {
-      defaultToken: '',
-      ignoreCase: true,
-
-      // キーワード定義
-      keywords: [
-        'PROC', 'DECLARE', 'BEGIN', 'END', 'DO', 'TO', 'BY', 'WHILE', 'UNTIL', 'END', 'LEAVE',
-        'IF', 'THEN', 'ELSE', 'ENDIF', 'SELECT', 'WHEN', 'OTHER', 'GO', 'TO', 'CALL', 'RETURN',
-        'PUT', 'GET', 'SKIP', 'EDIT', 'PAGE', 'LIST', 'DATA', 'FLOW', 'BINARY', 'BIT',
-        'CHARACTER', 'DECIMAL', 'FLOAT', 'FIXED', 'INITIAL', 'STATIC',
-        'AUTOMATIC',
-      ],
-
-      tokenizer: {
-        root: [
-          // コメント
-          [/\*.*$/, 'comment'],           // * で始まる行末までをコメントとして扱う
-          [/「/, 'comment', '@comment'],   // 「でコメント開始
-
-          // 文字列
-          [/"([^"\\]|\\.)*$/, 'string.invalid'],  // 閉じていない文字列
-          [/'([^'\\]|\\.)*$/, 'string.invalid'],  // 閉じていない文字列
-          [/"/, 'string', '@string_double'],      // "で始まる文字列
-          [/'/, 'string', '@string_single'],      // 'で始まる文字列
-
-          // 数値
-          [/[0-9]+/, 'number'],          // 整数
-          [/[0-9]+\.[0-9]+/, 'number'],  // 小数
-
-          // 識別子とキーワード
-          [/[a-zA-Z_$][\w$]*/, {
-            cases: {
-              '@keywords': 'keyword',     // キーワードリストに含まれる場合
-              '@default': 'identifier'    // それ以外は識別子として扱う
-            }
-          }]
-        ],
-
-        // コメントの状態
-        comment: [
-          [/[^」]+/, 'comment'],         // 」以外の文字列
-          [/」/, 'comment', '@pop'],     // 」でコメント終了
-          [/./, 'comment']               // その他の文字
-        ],
-
-        // 文字列の状態（ダブルクォート）
-        string_double: [
-          [/[^\\"]+/, 'string'],         // 文字列の内容
-          [/"/, 'string', '@pop'],       // "で文字列終了
-          [/./, 'string']                // その他の文字
-        ],
-
-        // 文字列の状態（シングルクォート）
-        string_single: [
-          [/[^\\']+/, 'string'],         // 文字列の内容
-          [/'/, 'string', '@pop'],       // 'で文字列終了
-          [/./, 'string']                // その他の文字
-        ]
-      }
-    });
-
-    // PL/Iもどきの言語設定
-    monaco.languages.setLanguageConfiguration('pli', {
-      comments: {
-        lineComment: '*',
-        blockComment: ['「', '」']
-      },
-      brackets: [
-        ['{', '}'],
-        ['[', ']'],
-        ['(', ')']
-      ],
-      autoClosingPairs: [
-        { open: '{', close: '}' },
-        { open: '[', close: ']' },
-        { open: '(', close: ')' },
-        { open: '"', close: '"' },
-        { open: '\'', close: '\'' },
-        { open: '「', close: '」' }
-      ],
-      surroundingPairs: [
-        { open: '{', close: '}' },
-        { open: '[', close: ']' },
-        { open: '(', close: ')' },
-        { open: '"', close: '"' },
-        { open: '\'', close: '\'' },
-        { open: '「', close: '」' }
-      ],
-      folding: {
-        markers: {
-          start: new RegExp(/^\s*[\w$]+:\s*proc(?:edure)?\s+/i),
-          end: new RegExp(/^\s*end\s+proc/i)
-        }
-      }
-    });
-
-    // 通常のエディタを作成
-    editor = monaco.editor.create(document.getElementById('editor'), {
-      value: '',
-      language: 'plaintext',
-      theme: 'vs',
-      lineNumbers: 'on',
-      glyphMargin: true,
-      folding: true
-    });
-
-    // ドラッグ&ドロップの処理
-    const editorContainer = document.getElementById('editor-container');
-    const dropOverlay = document.querySelector('.drop-overlay');
-    let dragCounter = 0;
-
-    // ファイルをドロップするときの処理
-    editorContainer.addEventListener('dragenter', (e) => {
-      e.preventDefault();
-      dragCounter++;
-      if (dragCounter === 1) {
-        dropOverlay.classList.add('active');
-      }
-    });
-
-    // ファイルをドロップ中の処理
-    editorContainer.addEventListener('dragover', (e) => {
-      e.preventDefault();
-    });
-
-    // ファイルをドロップしたときの処理
-    editorContainer.addEventListener('dragleave', (e) => {
-      e.preventDefault();
-      dragCounter--;
-      if (dragCounter === 0) {
-        dropOverlay.classList.remove('active');
-      }
-    });
-
-    // ファイルをドロップするときの処理
-    editorContainer.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      dragCounter = 0;
-      dropOverlay.classList.remove('active');
-
-      const file = e.dataTransfer.files[0];
-      if (file) {
-        currentFileName = file.name;
-        document.title = file.name;
-
-        // 文字コードを自動判別
-        const detectedEncoding = await detectEncoding(file);
-        // ファイルを読み込む
-        document.getElementById('encodingSelector').value = detectedEncoding;
-        const content = await readFileContent(file, detectedEncoding);
-
-        // ファイル拡張子に基づいて言語を設定
-        const extension = file.name.split('.').pop().toLowerCase();
-
-        if (extension === 'diff') {
-          const showDiff = await new Promise(resolve => {
-            if (confirm('差分モードで開きますか？')) {
-              resolve(true);
-            } else {
-              resolve(false);
-            }
-          });
-
-          // 差分モードで開く
-          if (showDiff) {
-            openInDiffMode(content);
-            return;
-          }
-        }
-
-        const languageMap = {
-          'js': 'javascript',
-          'html': 'html',
-          'css': 'css',
-          'vb': 'vb',
-          'bas': 'vb',
-          'cls': 'vb',
-          'vbs': 'vb',
-          'csv': 'csv',
-          'txt': 'plaintext',
-          'sql': 'sql',
-          'md': 'markdown',
-          'ipo': 'pli'
-        };
-
-        const currentLanguage = languageMap[extension] || 'plaintext';
-        document.getElementById('languageSelector').value = currentLanguage;
-        monaco.editor.setModelLanguage(editor.getModel(), currentLanguage);
-        originalContent = content;
-        editor.setValue(content);
-      }
-
-      // ブックマークをクリア
-      clearAllBookmarks();
-      // マークダウン画面を必要に応じて更新
-      updatePreview();
-      // エディタのレイアウトを更新
+  // ウィンドウのリサイズイベントを監視し、エディタを再描画する
+  window.addEventListener('resize', () => {
+    if (editor) {
       editor.layout();
-    });
-
-    // エディタの内容変更イベントをリッスン
-    editor.getModel().onDidChangeContent((e) => {
-      // 変更された行の情報を取得して、ブックマークの位置を更新
-      for (const change of e.changes) {
-        const startLineNumber = change.range.startLineNumber;
-        const endLineNumber = change.range.endLineNumber;
-        const lineCount = change.text.split('\n').length - 1;
-
-        updateBookmarkPositions(startLineNumber, endLineNumber, lineCount);
-      }
-    });
-
-    // エディタの内容が変更されたときの処理
-    editor.onDidChangeModelContent(() => {
-      // 関数区切り線を更新
-      updateFunctionDecorations(editor);
-      // プレビューを更新
-      updatePreview();
-    });
-
-    // エディタの言語が変更されたときの処理
-    editor.onDidChangeModelLanguage(() => {
-      // 関数区切り線を更新
-      updateFunctionDecorations(editor);
-      // プレビューを更新
-      updatePreview();
-    });
-
-    // ウィンドウのリサイズイベントを監視し、エディタを再描画する
-    window.addEventListener('resize', () => {
-      if (editor) {
-        editor.layout();
-      }
-      if (diffEditor) {
-        diffEditor.layout();
-      }
-    });
+    }
+    if (diffEditor) {
+      diffEditor.layout();
+    }
   });
 
   // 差分モードでファイルを開く

@@ -110,7 +110,7 @@
     </button>
   </div>
   <div id="editor-container" ondragover="event.preventDefault();" ondragenter="handleDragEnter(event)"
-    ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+    ondragleave="handleDragLeave(event)" ondrop="openFile(event)">
     <div id="editor"></div>
     <div id="preview"></div>
     <div class="drop-overlay">
@@ -500,7 +500,7 @@
       dropOverlay.classList.remove('active');
     }
   }
-  async function handleDrop(e) {
+  async function openFile(e) {
     e.preventDefault();
     dragCounter = 0;
     dropOverlay.classList.remove('active');
@@ -563,6 +563,7 @@
     updatePreview();
     // エディタのレイアウトを更新
     editor.layout();
+    changeTabSize();
   }
 
   // 関数区切り線を追加
@@ -752,6 +753,7 @@
     // 差分エディタを表示
     isDiffMode = false;
     toggleDiffEditor();
+    changeTabSize();
   }
 
   // 概要: 差分表示モードの切り替えを行う
@@ -832,11 +834,16 @@
         diffModel.original.updateOptions({ tabSize: selectedTabSize });
       }
     }
+    // エディタのレイアウトを更新
+    editor.layout();
   }
 
   // 概要: 現在のエディタの内容をファイルとして保存する
   async function saveFile() {
-    const [finalArray, fileName] = isDiffMode ? createDiffFileData() : createFileData();
+    let finalArray, fileName;
+    [finalArray, fileName] = isDiffMode ? createDiffFileData() : createFileData();
+    fileName = prompt('ファイル名を入力してください', fileName);
+    if (!fileName) return;
 
     try {
       // Blobを作成して保存

@@ -83,6 +83,20 @@
       </svg>
     </button>
     <div class="toolbar-separator"></div>
+    <div class="dropdown">
+      <button class="icon-button" onclick="toggleCaseMenu()" title="文字種変換">
+        <span
+          style="font-family: 'Segoe UI', -apple-system, Roboto, sans-serif; font-size: 16px; font-weight: 600;">Aa</span>
+      </button>
+      <div id="caseMenu" class="dropdown-menu">
+        <button onclick="editor.trigger('', 'editor.action.transformToUppercase')">大文字に変換</button>
+        <button onclick="editor.trigger('', 'editor.action.transformToLowercase')">小文字に変換</button>
+        <button onclick="editor.trigger('', 'editor.action.transformToTitlecase')">先頭のみ大文字に変換</button>
+        <button onclick="convertCase('fullWidth')">全角に変換</button>
+        <button onclick="convertCase('halfWidth')">半角に変換</button>
+      </div>
+    </div>
+    <div class="toolbar-separator"></div>
     <button class="icon-button" onclick="toggleBookmark()" title="ブックマークの設定/解除">
       <svg viewBox="0 0 24 24">
         <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" />
@@ -126,6 +140,7 @@
     border-bottom: 1px solid #ddd;
     display: flex;
     align-items: center;
+    user-select: none;
   }
 
   #editor-container {
@@ -332,6 +347,42 @@
   #preview ol {
     margin: 1em 0;
     padding-left: 2em;
+  }
+
+  .dropdown {
+    position: relative;
+    display: inline-block;
+  }
+
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    border-radius: 4px;
+    padding: 4px 0;
+  }
+
+  .dropdown-menu button {
+    display: block;
+    width: 100%;
+    padding: 8px 16px;
+    text-align: left;
+    border: none;
+    background: none;
+    cursor: pointer;
+  }
+
+  .dropdown-menu button:hover {
+    background-color: #e9e9e9;
+  }
+
+  .dropdown-menu.show {
+    display: block;
   }
 </style>
 
@@ -1025,5 +1076,55 @@ ${modifiedText}
         }
       }
     }
+  }
+
+  // 概要: 文字種変換メニューを表示/非表示を切り替える
+  function toggleCaseMenu() {
+    const menu = document.getElementById('caseMenu');
+    menu.classList.toggle('show');
+
+    // メニュー以外をクリックしたときにメニューを閉じる
+    document.addEventListener('click', function closeMenu(e) {
+      if (!e.target.closest('.dropdown')) {
+        menu.classList.remove('show');
+        document.removeEventListener('click', closeMenu);
+      }
+    });
+  }
+
+  // 選択された文字を変換する
+  function convertCase(type) {
+    const selections = editor.getSelections();
+    if (!selections || selections.length === 0) return;
+
+    const edits = selections.map(selection => {
+      const selectedText = editor.getModel().getValueInRange(selection);
+      if (!selectedText) return null;
+      const FULL_WIDTH_OFFSET = 'Ａ'.charCodeAt(0) - 'A'.charCodeAt(0);
+      let convertedText;
+      switch (type) {
+        case 'fullWidth':
+          convertedText = selectedText.replace(/[!-}]/g, c =>
+            String.fromCharCode(c.charCodeAt(0) + FULL_WIDTH_OFFSET)
+          );
+          break;
+        case 'halfWidth':
+          convertedText = selectedText.replace(/[！-～]/g, c =>
+            String.fromCharCode(c.charCodeAt(0) - FULL_WIDTH_OFFSET)
+          );
+          break;
+      }
+      return {
+        range: selection,
+        text: convertedText
+      };
+    }).filter(edit => edit !== null);
+
+    if (edits.length > 0) {
+      editor.executeEdits('', edits);
+    }
+
+    // メニューを閉じる
+    document.getElementById('caseMenu').classList.remove('show');
   }
 </script>

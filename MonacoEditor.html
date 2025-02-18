@@ -621,10 +621,16 @@
     clearAllBookmarks();
     // マークダウン画面を必要に応じて更新
     updatePreview();
-    // エディタのレイアウトを更新
+    // タブサイズを更新
     changeTabSize();
-    editor.layout();
-    diffEditor.layout();
+    // エディタのレイアウトを更新
+    layoutEditor();
+  }
+
+  // エディタのレイアウトを更新
+  function layoutEditor() {
+    if (editor) editor.layout();
+    if (diffEditor) diffEditor.layout();
   }
 
   // 関数区切り線を追加
@@ -747,7 +753,7 @@
     // 言語に関係なくプレビューを更新
     updatePreview();
     // エディタのレイアウトを更新
-    editor.layout();
+    layoutEditor();
   }
 
   // 概要: ファイルの文字コードを自動判別する
@@ -765,14 +771,7 @@
   }
 
   // ウィンドウのリサイズイベントを監視し、エディタを再描画する
-  window.addEventListener('resize', () => {
-    if (editor) {
-      editor.layout();
-    }
-    if (diffEditor) {
-      diffEditor.layout();
-    }
-  });
+  window.addEventListener('resize', layoutEditor);
 
   // 差分モードでファイルを開く
   function openInDiffMode(content) {
@@ -890,7 +889,7 @@
     // マークダウン画面を必要に応じて更新
     updatePreview();
     // エディタのレイアウトを更新
-    editor.layout();
+    layoutEditor();
   }
 
   // 差分エディタの左右を入れ替える関数
@@ -921,7 +920,7 @@
       }
     }
     // エディタのレイアウトを更新
-    editor.layout();
+    layoutEditor();
   }
 
   // 概要: 現在のエディタの内容をファイルとして保存する

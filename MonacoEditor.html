@@ -613,7 +613,7 @@
       const currentLanguage = languageMap[extension] || 'plaintext';
       document.getElementById('languageSelector').value = currentLanguage;
       monaco.editor.setModelLanguage(editor.getModel(), currentLanguage);
-      originalContent = content;
+      if (!isDiffMode) originalContent = content;
       editor.setValue(content);
     }
 
@@ -900,12 +900,12 @@
     const modifiedModel = diffEditor.getModifiedEditor().getModel();
 
     // モデルの内容を取得
-    const originalContent = originalModel.getValue();
-    const modifiedContent = modifiedModel.getValue();
+    originalContent = modifiedModel.getValue();
+    const modifiedContent = originalModel.getValue();
 
     // 内容を入れ替え
-    originalModel.setValue(modifiedContent);
-    modifiedModel.setValue(originalContent);
+    originalModel.setValue(originalContent);
+    modifiedModel.setValue(modifiedContent);
   }
 
   // 概要: エディタの言語モードを変更する

@@ -122,6 +122,10 @@
     <button class="icon-button" onclick="toggleDiffEditor()" title="新旧差分を表示します" id="diffButton">
       新旧差分
     </button>
+    <button class="icon-button diff-only" onclick="swapDiffSides()" title="左右を入れ替える">
+      <svg viewBox="0 0 24 24">
+        <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z" />
+      </svg> </button>
   </div>
   <div id="editor-container" ondragover="event.preventDefault();" ondragenter="handleDragEnter(event)"
     ondragleave="handleDragLeave(event)" ondrop="openFile(event)">
@@ -384,6 +388,11 @@
   .dropdown-menu.show {
     display: block;
   }
+
+  /* 差分モード時のみ表示するボタンのスタイル */
+  .diff-only {
+    display: none;
+  }
 </style>
 
 <script>
@@ -613,8 +622,9 @@
     // マークダウン画面を必要に応じて更新
     updatePreview();
     // エディタのレイアウトを更新
-    editor.layout();
     changeTabSize();
+    editor.layout();
+    diffEditor.layout();
   }
 
   // 関数区切り線を追加
@@ -868,10 +878,35 @@
       diffButton.classList.remove('active');
     }
 
+    // 差分モード用のボタンを表示/非表示を切り替え
+    document.querySelectorAll('.diff-only').forEach(button => {
+      if (isDiffMode) {
+        button.style.display = 'inline-flex';
+      } else {
+        button.style.display = 'none';
+      }
+    });
+
     // マークダウン画面を必要に応じて更新
     updatePreview();
     // エディタのレイアウトを更新
     editor.layout();
+  }
+
+  // 差分エディタの左右を入れ替える関数
+  function swapDiffSides() {
+    if (!diffEditor) return;
+
+    const originalModel = diffEditor.getOriginalEditor().getModel();
+    const modifiedModel = diffEditor.getModifiedEditor().getModel();
+
+    // モデルの内容を取得
+    const originalContent = originalModel.getValue();
+    const modifiedContent = modifiedModel.getValue();
+
+    // 内容を入れ替え
+    originalModel.setValue(modifiedContent);
+    modifiedModel.setValue(originalContent);
   }
 
   // 概要: エディタの言語モードを変更する

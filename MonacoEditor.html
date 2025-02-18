@@ -89,9 +89,9 @@
           style="font-family: 'Segoe UI', -apple-system, Roboto, sans-serif; font-size: 16px; font-weight: 600;">Aa</span>
       </button>
       <div id="caseMenu" class="dropdown-menu">
-        <button onclick="editor.trigger('', 'editor.action.transformToUppercase')">大文字に変換</button>
-        <button onclick="editor.trigger('', 'editor.action.transformToLowercase')">小文字に変換</button>
-        <button onclick="editor.trigger('', 'editor.action.transformToTitlecase')">先頭のみ大文字に変換</button>
+        <button onclick="convertCase('upper')">大文字に変換</button>
+        <button onclick="convertCase('lower')">小文字に変換</button>
+        <button onclick="convertCase('title')">先頭のみ大文字に変換</button>
         <button onclick="convertCase('fullWidth')">全角に変換</button>
         <button onclick="convertCase('halfWidth')">半角に変換</button>
       </div>
@@ -512,7 +512,7 @@
       ],
       folding: {
         markers: {
-          start: new RegExp(/^\s*[\w$]+:\s*proc:/i),
+          start: new RegExp(/^\s*[\w$]+:\s*proc;/i),
           end: new RegExp(/^\s*end\s+proc/i)
         }
       }
@@ -644,7 +644,7 @@
       'sql': /^\s*(create\s+)?(procedure|function|trigger|view)\s+/i,
       'javascript': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
       'html': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
-      'pli': /^\s*[\w$]+:\s*proc:/i
+      'pli': /^\s*[\w$]+:\s*proc;/i
     };
     const languageId = targetEditor.getModel().getLanguageId();
     const pattern = functionPatterns[languageId];
@@ -816,7 +816,7 @@
     changeTabSize();
   }
 
-  // 概要: 差分表示モードの切り替えを行う
+  // 差分表示モードの切り替えを行う
   function toggleDiffEditor() {
     isDiffMode = !isDiffMode;
 
@@ -1128,37 +1128,43 @@ ${modifiedText}
 
   // 選択された文字を変換する
   function convertCase(type) {
-    const selections = editor.getSelections();
-    if (!selections || selections.length === 0) return;
+    const targetEditor = isDiffMode ? diffEditor.getModifiedEditor() : editor;
+    const model = targetEditor.getModel();
+    if (!model) return;
+    const selections = targetEditor.getSelections();
+    if (!selections) return;
 
-    const edits = selections.map(selection => {
-      const selectedText = editor.getModel().getValueInRange(selection);
-      if (!selectedText) return null;
-      const FULL_WIDTH_OFFSET = 'Ａ'.charCodeAt(0) - 'A'.charCodeAt(0);
-      let convertedText;
-      switch (type) {
-        case 'fullWidth':
-          convertedText = selectedText.replace(/[!-}]/g, c =>
-            String.fromCharCode(c.charCodeAt(0) + FULL_WIDTH_OFFSET)
-          );
-          break;
-        case 'halfWidth':
-          convertedText = selectedText.replace(/[！-～]/g, c =>
-            String.fromCharCode(c.charCodeAt(0) - FULL_WIDTH_OFFSET)
-          );
-          break;
-      }
-      return {
-        range: selection,
-        text: convertedText
-      };
-    }).filter(edit => edit !== null);
+    switch (type) {
+      case 'upper':
+        targetEditor.trigger('', 'editor.action.transformToUppercase');
+        break;
+      case 'lower':
+        targetEditor.trigger('', 'editor.action.transformToLowercase');
+        break;
+      case 'title':
+        targetEditor.trigger('', 'editor.action.transformToTitlecase');
+        break;
+      case 'fullWidth':
+      case 'halfWidth':
+        const selections = targetEditor.getSelections();
+        const ZEN_HAN_DIFF = 'Ａ'.charCodeAt(0) - 'A'.charCodeAt(0); // 差分を計算
+        const edits = selections.map(selection => {
+          const text = model.getValueInRange(selection);
+          const convertedText = (type === 'fullWidth')
+            ? text.replace(/[!-}]/g, s => String.fromCharCode(s.charCodeAt(0) + ZEN_HAN_DIFF))
+            : text.replace(/[！-｝]/g, s => String.fromCharCode(s.charCodeAt(0) - ZEN_HAN_DIFF));
+          return {
+            range: selection,
+            text: convertedText
+          };
+        });
 
-    if (edits.length > 0) {
-      editor.executeEdits('', edits);
+        targetEditor.executeEdits('', edits);
+        break;
     }
 
     // メニューを閉じる
     document.getElementById('caseMenu').classList.remove('show');
+    targetEditor.focus();
   }
 </script>

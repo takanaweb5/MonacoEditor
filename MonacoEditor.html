@@ -44,13 +44,13 @@
       </select>
     </div>
     <div class="toolbar-separator"></div>
-    <button class="icon-button" onclick="editor.trigger('', 'undo')" title="元に戻す">
+    <button class="icon-button" onclick="editor.trigger('', 'undo')" title="元に戻す(Ctrl+Z)">
       <svg viewBox="0 0 24 24">
         <path
           d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" />
       </svg>
     </button>
-    <button class="icon-button" onclick="editor.trigger('', 'redo')" title="やり直し">
+    <button class="icon-button" onclick="editor.trigger('', 'redo')" title="やり直し(Ctrl+Y)">
       <svg viewBox="0 0 24 24">
         <path
           d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z" />
@@ -70,13 +70,14 @@
       </svg>
     </button>
     <div class="toolbar-separator"></div>
-    <button class="icon-button" onclick="editor.trigger('', 'actions.find')" title="検索">
+    <button class="icon-button" onclick="getTargetEditor().trigger('', 'actions.find')" title="検索(Ctrl+F)">
       <svg viewBox="0 0 24 24">
         <path
           d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
       </svg>
     </button>
-    <button class="icon-button" onclick="editor.trigger('', 'editor.action.startFindReplaceAction')" title="置換">
+    <button class="icon-button" onclick="getTargetEditor().trigger('', 'editor.action.startFindReplaceAction')"
+      title="置換(Ctrl+R)">
       <svg viewBox="0 0 24 24">
         <path
           d="M11 6c1.38 0 2.63.56 3.54 1.46L12 10h6V4l-2.05 2.05C14.68 4.78 12.93 4 11 4c-3.53 0-6.43 2.61-6.92 6H6.1c.46-2.28 2.48-4 4.9-4zm5.64 9.14c.66-.9 1.12-1.97 1.28-3.14H15.9c-.46 2.28-2.48 4-4.9 4-1.38 0-2.63-.56-3.54-1.46L10 12H4v6l2.05-2.05C7.32 17.22 9.07 18 11 18c1.55 0 2.98-.51 4.14-1.36L20 21.49 21.49 20l-4.85-4.86z" />
@@ -102,12 +103,12 @@
         <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" />
       </svg>
     </button>
-    <button class="icon-button" onclick="goToNextBookmark()" title="次のブックマークへ">
+    <button class="icon-button" onclick="goToBookmark(1)" title="次のブックマークへ">
       <svg viewBox="0 0 24 24">
         <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
       </svg>
     </button>
-    <button class="icon-button" onclick="goToPreviousBookmark()" title="前のブックマークへ">
+    <button class="icon-button" onclick="goToBookmark(-1)" title="前のブックマークへ">
       <svg viewBox="0 0 24 24">
         <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
       </svg>
@@ -398,6 +399,7 @@
 <script>
   let editor;
   let diffEditor;
+  let lastFocused = null;  // 最後にフォーカスされたエディタを保持する変数
   let currentFileName = null;
   let originalContent = '';
   let isDiffMode = false;  // 差分表示モードのフラグを復活
@@ -827,7 +829,7 @@
         // オプション設定
         enableSplitViewResizing: true,
         renderSideBySide: true,
-        originalEditable: false,  // 左側（Original Editor）を編集不可に設定
+        originalEditable: true,
         glyphMargin: true  // Modified Editorの行番号横のアイコン表示のために必要
       });
 
@@ -854,10 +856,21 @@
         updateFunctionDecorations(diffEditor.getModifiedEditor());
         updateBookmarkDecorations(diffEditor.getModifiedEditor());
       });
+
+      // フォーカスイベントの設定
+      diffEditor.getOriginalEditor().onDidFocusEditorText(() => {
+        lastFocused = diffEditor.getOriginalEditor();
+      });
+
+      diffEditor.getModifiedEditor().onDidFocusEditorText(() => {
+        lastFocused = diffEditor.getModifiedEditor();
+      });
     } else {
       // 差分エディタを破棄
       if (diffEditor) {
         const modifiedModel = diffEditor.getModifiedEditor().getModel();
+        const originalModel = diffEditor.getOriginalEditor().getModel();
+        originalContent = originalModel.getValue();
         diffEditor.dispose();
         // 修正されたモデルを保持
         editor.setModel(modifiedModel);
@@ -906,6 +919,11 @@
     // 内容を入れ替え
     originalModel.setValue(originalContent);
     modifiedModel.setValue(modifiedContent);
+
+    // 関数区切り線を両方のエディタに追加
+    updateFunctionDecorations(diffEditor.getOriginalEditor());
+    updateFunctionDecorations(diffEditor.getModifiedEditor());
+
   }
 
   // 概要: エディタの言語モードを変更する
@@ -1011,7 +1029,10 @@ ${modifiedText}
 
   // 概要: ブックマークの設定/解除を切り替える
   function toggleBookmark() {
-    const targetEditor = isDiffMode ? diffEditor.getModifiedEditor() : editor;
+    const targetEditor = getTargetEditor();
+    // オリジナルエディタの時return
+    if (isDiffMode && targetEditor === diffEditor.getOriginalEditor()) return;
+
     const position = targetEditor.getPosition();
     const lineNumber = position.lineNumber;
     const column = position.column;
@@ -1027,42 +1048,24 @@ ${modifiedText}
     targetEditor.setPosition({ lineNumber, column });
   }
 
-  // 概要: 次のブックマークにジャンプ
-  function goToNextBookmark() {
-    const targetEditor = isDiffMode ? diffEditor.getModifiedEditor() : editor;
-    const currentLine = targetEditor.getPosition().lineNumber;
-    const bookmarkArray = Array.from(bookmarkLines).sort((a, b) => a - b);
+  // 概要: 指定された方向の次のブックマークにジャンプ
+  function goToBookmark(direction) {
+    const targetEditor = getTargetEditor();
+    // オリジナルエディタの時return
+    if (isDiffMode && targetEditor === diffEditor.getOriginalEditor()) return;
 
-    // 現在の行より後にあるブックマークを探す
-    const nextBookmark = bookmarkArray.find(line => line > currentLine);
+    const currentLine = targetEditor.getPosition().lineNumber;
+    const bookmarkArray = Array.from(bookmarkLines).sort((a, b) => direction > 0 ? a - b : b - a);
+
+    // 現在の行から指定された方向にあるブックマークを探す
+    const nextBookmark = bookmarkArray.find(line => direction > 0 ? line > currentLine : line < currentLine);
 
     if (nextBookmark) {
       // 次のブックマークへジャンプ
       targetEditor.setPosition({ lineNumber: nextBookmark, column: 1 });
       targetEditor.revealLineInCenter(nextBookmark);
     } else if (bookmarkArray.length > 0) {
-      // 最後まで行ったら最初のブックマークへ
-      targetEditor.setPosition({ lineNumber: bookmarkArray[0], column: 1 });
-      targetEditor.revealLineInCenter(bookmarkArray[0]);
-    }
-    targetEditor.focus(); // エディタにフォーカスを戻す
-  }
-
-  // 概要: 前のブックマークにジャンプ
-  function goToPreviousBookmark() {
-    const targetEditor = isDiffMode ? diffEditor.getModifiedEditor() : editor;
-    const currentLine = targetEditor.getPosition().lineNumber;
-    const bookmarkArray = Array.from(bookmarkLines).sort((a, b) => b - a);
-
-    // 現在の行より前にあるブックマークを探す
-    const prevBookmark = bookmarkArray.find(line => line < currentLine);
-
-    if (prevBookmark) {
-      // 前のブックマークへジャンプ
-      targetEditor.setPosition({ lineNumber: prevBookmark, column: 1 });
-      targetEditor.revealLineInCenter(prevBookmark);
-    } else if (bookmarkArray.length > 0) {
-      // 最初まで行ったら最後のブックマークへ
+      // 最後/最初まで行ったら最初/最後のブックマークへ
       targetEditor.setPosition({ lineNumber: bookmarkArray[0], column: 1 });
       targetEditor.revealLineInCenter(bookmarkArray[0]);
     }
@@ -1128,7 +1131,7 @@ ${modifiedText}
 
   // 選択された文字を変換する
   function convertCase(type) {
-    const targetEditor = isDiffMode ? diffEditor.getModifiedEditor() : editor;
+    const targetEditor = getTargetEditor();
     const model = targetEditor.getModel();
     if (!model) return;
     const selections = targetEditor.getSelections();
@@ -1166,5 +1169,14 @@ ${modifiedText}
     // メニューを閉じる
     document.getElementById('caseMenu').classList.remove('show');
     targetEditor.focus();
+  }
+
+  // 概要: 現在のターゲットエディタを取得する
+  function getTargetEditor() {
+    if (!isDiffMode) {
+      return editor;
+    }
+    // 差分モードの場合は、lastFocusedがあればそれを、なければ右側のエディタを返す
+    return lastFocused || diffEditor.getModifiedEditor();
   }
 </script>

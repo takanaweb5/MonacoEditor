@@ -410,6 +410,14 @@
   require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
   require(['vs/editor/editor.main'], onEditorLoad);
 
+  /**
+   * Monaco Editorの初期化処理
+   *
+   * Monaco EditorのCoreモジュールをロードして、エディタのインスタンスを作成。
+   * PL/Iのシンタックスハイライトルールを定義し、PL/Iもどきの言語設定を適用。
+   * エディタの内容変更イベントをリッスンして、ブックマークの位置を更新。
+   * エディタの内容が変更されたときや、言語が変更されたときの処理を定義。
+   */
   function onEditorLoad() {
     // 通常のエディタを作成
     editor = monaco.editor.create(document.getElementById('editor'), {
@@ -537,7 +545,10 @@
     editor.onDidChangeModelLanguage(updateEditorUI);
   }
 
-  // エディタのUI更新処理を共通化
+  /**
+   * Monaco EditorのUIを更新する。
+   * 関数区切り線を更新し、プレビューを更新する。
+   */
   function updateEditorUI() {
     // 関数区切り線を更新
     updateFunctionDecorations(editor);
@@ -545,9 +556,16 @@
     updatePreview();
   }
 
-  // ドラッグ&ドロップの処理
+
   const dropOverlay = document.querySelector('.drop-overlay');
   let dragCounter = 0;
+  /**
+   * ドラッグエンターイベントを処理します。デフォルトの動作を防止し、
+   * dragCounterをインクリメントし、アイテムがターゲットエリアに最初にドラッグされたときに
+   * ドロップオーバーレイをアクティブにします。
+   *
+   * @param {Event} e - ドラッグエンターイベントオブジェクト
+   */
   function handleDragEnter(e) {
     e.preventDefault();
     dragCounter++;
@@ -555,6 +573,13 @@
       dropOverlay.classList.add('active');
     }
   }
+  /**
+   * ドラッグエンターイベントを処理します。デフォルトの動作を防止し、
+   * dragCounterをデクリメントし、アイテムがターゲットエリアから最後にドラッグされたときに
+   * ドロップオーバーレイを非アクティブにします。
+   *
+   * @param {Event} e - ドラッグエンターイベントオブジェクト
+   */
   function handleDragLeave(e) {
     e.preventDefault();
     dragCounter--;
@@ -562,6 +587,12 @@
       dropOverlay.classList.remove('active');
     }
   }
+  /**
+   * ファイルを開く。
+   * ドラッグ&ドロップのドロップ領域を示す要素。
+   * ドラッグ&ドロップのドロップ領域にドロップされたら、ドロップされたファイルを開く。
+   * @param {Event} e - ドラッグ&ドロップのドロップイベントオブジェクト
+   */
   async function openFile(e) {
     e.preventDefault();
     dragCounter = 0;
@@ -629,13 +660,18 @@
     layoutEditor();
   }
 
-  // エディタのレイアウトを更新
+  /**
+   * エディタのレイアウトを更新
+   */ 
   function layoutEditor() {
     if (editor) editor.layout();
     if (diffEditor) diffEditor.layout();
   }
 
-  // 関数区切り線を追加
+  /**
+   * 関数区切り線を追加
+   * @param {monaco.editor.IStandaloneCodeEditor} targetEditor - 対象のエディタ
+   */
   function updateFunctionDecorations(targetEditor) {
     if (!targetEditor || !targetEditor.getModel()) {
       return;
@@ -680,7 +716,11 @@
     editorDecorations.set(targetEditor, decorationIds);
   }
 
-  // バイト配列がUTF-8かどうかを判定する
+  /**
+   * バイト配列がUTF-8かどうかを判定する
+   * @param {Uint8Array} bytes - 判定対象のバイト配列
+   * @returns {boolean} UTF-8かどうか
+   */
   function isUtf8(bytes) {
     // UTF-8のBOMチェック
     if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
@@ -715,7 +755,9 @@
     return true;
   }
 
-  // プレビューを更新する関数
+  /**
+   * プレビューを更新する
+   */
   function updatePreview() {
     const language = document.getElementById('languageSelector').value;
     const preview = document.getElementById('preview');
@@ -743,7 +785,9 @@
     });
   }
 
-  // 言語が変更されたときの処理
+  /**
+   * 言語が変更されたときの処理
+   */
   function changeLanguage() {
     const language = document.getElementById('languageSelector').value;
 
@@ -758,7 +802,11 @@
     layoutEditor();
   }
 
-  // 概要: ファイルの文字コードを自動判別する
+  /**
+   * ファイルの文字コードを自動判別する
+   * @param {File} file - 判別対象のファイル
+   * @returns {Promise<string>} 判別された文字コード
+   */
   async function detectEncoding(file) {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
@@ -772,10 +820,15 @@
     return decoder.decode(buffer);
   }
 
-  // ウィンドウのリサイズイベントを監視し、エディタを再描画する
+  /**
+   * ウィンドウのリサイズイベントを監視し、エディタを再描画する
+   */
   window.addEventListener('resize', layoutEditor);
 
-  // 差分モードでファイルを開く
+  /**
+   * 差分モードでファイルを開く
+   * @param {string} content - ファイルの内容
+   */
   function openInDiffMode(content) {
     // 言語判定
     const languageMatch = content.match(/```(\w+)/);
@@ -818,7 +871,9 @@
     changeTabSize();
   }
 
-  // 差分表示モードの切り替えを行う
+  /**
+   * 差分表示モードの切り替えを行う
+   */
   function toggleDiffEditor() {
     isDiffMode = !isDiffMode;
 
@@ -905,7 +960,9 @@
     layoutEditor();
   }
 
-  // 差分エディタの左右を入れ替える関数
+  /**
+   * 差分エディタの左右を入れ替える関数
+   */
   function swapDiffSides() {
     if (!diffEditor) return;
 
@@ -926,7 +983,9 @@
 
   }
 
-  // 概要: エディタの言語モードを変更する
+  /**
+   * エディタの言語モードを変更する
+   */
   function changeTabSize() {
     const selectedTabSize = parseInt(document.getElementById('tabSizeSelector').value);
     if (editor) {
@@ -941,7 +1000,9 @@
     layoutEditor();
   }
 
-  // 概要: 現在のエディタの内容をファイルとして保存する
+  /**
+   * 現在のエディタの内容をファイルとして保存する
+   */
   async function saveFile() {
     let finalArray, fileName;
     [finalArray, fileName] = isDiffMode ? createDiffFileData() : createFileData();
@@ -965,6 +1026,9 @@
     }
   }
 
+  /**
+   * 差分ファイルのデータを生成する
+   */
   function createDiffFileData() {
     const currentLanguage = editor.getModel().getLanguageId();
     const originalText = diffEditor.getOriginalEditor().getValue()
@@ -993,6 +1057,9 @@ ${modifiedText}
     return [finalArray, fileName];
   }
 
+  /**
+   * ファイルのデータを生成する
+   */
   function createFileData() {
     const content = editor.getValue();
     const encoding = document.getElementById('encodingSelector').value;
@@ -1020,14 +1087,18 @@ ${modifiedText}
     return [finalArray, fileName];
   }
 
-  // 概要: エディタの内容をクリアし、初期状態に戻す
+  /** 
+   * エディタの内容をクリアし、初期状態に戻す
+   */
   function clearEditor() {
     if (confirm('エディタの内容をクリアしますか？\nクリアすればundoは出来ません')) {
       location.reload();
     }
   }
 
-  // 概要: ブックマークの設定/解除を切り替える
+  /** 
+   * ブックマークの設定/解除を切り替える
+   */
   function toggleBookmark() {
     const targetEditor = getTargetEditor();
     // オリジナルエディタの時return
@@ -1048,38 +1119,38 @@ ${modifiedText}
     targetEditor.setPosition({ lineNumber, column });
   }
 
-  // 概要: 指定された方向の次のブックマークにジャンプ
+  /**
+   * 指定された方向の次のブックマークにジャンプ
+   * @param {number} direction - ジャンプする方向(正:次のブックマーク、負:前のブックマーク)
+   */
   function goToBookmark(direction) {
     const targetEditor = getTargetEditor();
     // オリジナルエディタの時return
     if (isDiffMode && targetEditor === diffEditor.getOriginalEditor()) return;
 
     const currentLine = targetEditor.getPosition().lineNumber;
-    const bookmarkArray = Array.from(bookmarkLines).sort((a, b) => direction > 0 ? a - b : b - a);
+    const bookmarkArray = Array.from(bookmarkLines).sort((a, b) => direction * (a - b));
 
     // 現在の行から指定された方向にあるブックマークを探す
-    const nextBookmark = bookmarkArray.find(line => direction > 0 ? line > currentLine : line < currentLine);
-
-    if (nextBookmark) {
-      // 次のブックマークへジャンプ
-      targetEditor.setPosition({ lineNumber: nextBookmark, column: 1 });
-      targetEditor.revealLineInCenter(nextBookmark);
-    } else if (bookmarkArray.length > 0) {
-      // 最後/最初まで行ったら最初/最後のブックマークへ
-      targetEditor.setPosition({ lineNumber: bookmarkArray[0], column: 1 });
-      targetEditor.revealLineInCenter(bookmarkArray[0]);
-    }
+    const nextBookmark = bookmarkArray.find(line => direction * (line - currentLine) > 0) || bookmarkArray[0]
+    targetEditor.setPosition({ lineNumber: nextBookmark, column: 1 });
+    targetEditor.revealLineInCenter(nextBookmark);
     targetEditor.focus(); // エディタにフォーカスを戻す
   }
 
-  // 概要: すべてのブックマークを解除
+  /**
+   * すべてのブックマークを解除
+   */
   function clearAllBookmarks() {
     bookmarkLines.clear();
     updateBookmarkDecorations(editor);
     editor.focus(); // エディタにフォーカスを戻す
   }
 
-  // 概要: ブックマークの装飾を更新
+  /**
+   * ブックマークの装飾を更新
+   * @param {monaco.editor.IEditor} targetEditor - 更新対象のエディタ
+   */
   function updateBookmarkDecorations(targetEditor) {
     const decorations = Array.from(bookmarkLines).map(line => ({
       range: new monaco.Range(line, 1, line, 1),
@@ -1096,7 +1167,12 @@ ${modifiedText}
     targetEditor.deltaDecorations(oldDecorations, decorations);
   }
 
-  // 概要: 行の追加/削除に応じてブックマークの位置を更新
+  /**
+   * 行の追加/削除に応じてブックマークの位置を更新
+   * @param {number} startLine - 変更された行の開始行
+   * @param {number} endLine - 変更された行の終了行
+   * @param {number} lineCount - 変更された行数
+   */
   function updateBookmarkPositions(startLine, endLine, lineCount) {
     const oldBookmarks = Array.from(bookmarkLines);
     bookmarkLines.clear();
@@ -1115,7 +1191,9 @@ ${modifiedText}
     }
   }
 
-  // 概要: 文字種変換メニューを表示/非表示を切り替える
+  /**
+   * 文字種変換メニューを表示/非表示を切り替える
+   */
   function toggleCaseMenu() {
     const menu = document.getElementById('caseMenu');
     menu.classList.toggle('show');
@@ -1129,7 +1207,12 @@ ${modifiedText}
     });
   }
 
-  // 選択された文字を変換する
+  /**
+   * エディタで選択されたテキストを指定された形式に変換します。
+   * 大文字、小文字、タイトルケース、全角、半角への変換に対応しています。
+   * @param {string} type - 変換タイプ（'upper'：大文字、'lower'：小文字、'title'：タイトルケース、'fullWidth'：全角、'halfWidth'：半角）
+   * 'fullWidth'または'halfWidth'が選択された場合、ASCII文字と全角文字の間で変換を行います。
+   */
   function convertCase(type) {
     const targetEditor = getTargetEditor();
     const model = targetEditor.getModel();
@@ -1149,7 +1232,6 @@ ${modifiedText}
         break;
       case 'fullWidth':
       case 'halfWidth':
-        const selections = targetEditor.getSelections();
         const ZEN_HAN_DIFF = 'Ａ'.charCodeAt(0) - 'A'.charCodeAt(0); // 差分を計算
         const edits = selections.map(selection => {
           const text = model.getValueInRange(selection);
@@ -1171,7 +1253,10 @@ ${modifiedText}
     targetEditor.focus();
   }
 
-  // 概要: 現在のターゲットエディタを取得する
+  /**
+   * 現在のターゲットエディタを取得する
+   * @returns {monaco.editor.IEditor} - ターゲットエディタ
+   */
   function getTargetEditor() {
     if (!isDiffMode) {
       return editor;

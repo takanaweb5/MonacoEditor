@@ -10,6 +10,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
   <script src="https://unpkg.com/monaco-editor@0.33.0/min/vs/loader.js"></script>
+  <script>const MONACO_URL = "https://unpkg.com/monaco-editor@0.33.0/min/vs"</script>
 </head>
 
 <body>
@@ -407,7 +408,7 @@
   const editorDecorations = new WeakMap(); // WeakMapを追加
   const editorContainer = document.getElementById('editor-container');
 
-  require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
+  require.config({ paths: { 'vs': MONACO_URL } });
   require(['vs/editor/editor.main'], onEditorLoad);
 
   /**

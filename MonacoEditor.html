@@ -544,9 +544,8 @@
     // エディタの言語が変更されたときの処理
     editor.onDidChangeModelLanguage(updateEditorUI);
 
-    // 'pli'用のシンボルプロバイダを登録
+    // 'pli'用シンボル情報提供用のCallback関数を登録
     monaco.languages.registerDocumentSymbolProvider('vb', { provideDocumentSymbols });
-    // シンボル情報を提供するCallback関数
     function provideDocumentSymbols(model, token) {
       const symbols = [];
       const START_PATTERN = '(?:private|public)? *(?:function|sub|property) +(\\w+).*';// 関数の開始行
@@ -592,6 +591,58 @@
       return symbols;
     }
 
+    // 'pli'用の定義提供用のCallback関数を登録
+    monaco.languages.registerDefinitionProvider("vb", { provideDefinition });
+    function provideDefinition(model, position, token) {
+      // カーソル位置の行を取得
+      const lineContent = model.getLineContent(position.lineNumber);
+      // 行が 'call' で始まるか確認し、関数名を抽出
+      const match = lineContent.trim().match(/^call\s+(\w+)/i);
+      if (!match) return;
+      const functionName = match[1];
+
+      // 関数名に該当する行を検索
+      const lines = model.getLinesContent();
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].match(new RegExp(`(?:function|sub)\\s+${functionName}`, 'i'))) {
+          return {
+            uri: model.uri,
+            // 該当行の全体を range に設定
+            range: new monaco.Range(i + 1, 1, i + 1, lines[i].length + 1),
+          };
+        }
+      }
+    }
+
+    // 'pli'用の参照提供用のCallback関数を登録
+    monaco.languages.registerReferenceProvider("vb", { provideReferences });
+    function provideReferences(model, position, context, token) {
+      // カーソル位置の行を取得
+      const lineContent = model.getLineContent(position.lineNumber);
+      let match;
+      // 行が関数の開始行か確認し、関数名を抽出
+      match = lineContent.trim().match(/^(?:private|public)? *(?:function|sub|property) +(\w+).*/i);
+      if (!match) {
+        // 行が 'call' で始まるか確認し、関数名を抽出
+        match = lineContent.trim().match(/^call\s+(\w+)/i);
+      }
+      if (!match) return;
+      const functionName = match[1];
+
+      // 関数名が呼び出されている行と定義されている行をすべて検索
+      const lines = model.getLinesContent();
+      const references = [];
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].match(new RegExp(`call\\s+${functionName}`, 'i')) ||
+          lines[i].match(new RegExp(`(?:function|sub)\\s+${functionName}`, 'i'))) {
+          references.push({
+            uri: model.uri,
+            range: new monaco.Range(i + 1, 1, i + 1, lines[i].length + 1),
+          });
+        }
+      }
+      return references;
+    }
   }
 
   /**

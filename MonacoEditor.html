@@ -9,8 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
-  <script src="https://unpkg.com/monaco-editor@0.33.0/min/vs/loader.js"></script>
-  <script>const MONACO_URL = "https://unpkg.com/monaco-editor@0.33.0/min/vs"</script>
+  <script src="https://unpkg.com/monaco-editor@0.52.0/min/vs/loader.js"></script>
+  <script>const MONACO_URL = "https://unpkg.com/monaco-editor@0.52.0/min/vs"</script>
 </head>
 
 <body>
@@ -644,6 +644,21 @@
       }
       return references;
     }
+
+    // キー割り当てを変更する
+    monaco.editor.addKeybindingRules([{
+      // Ctrl+[ に editor.action.jumpToBracket を割り当て
+      keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.BracketLeft,
+      command: 'editor.action.jumpToBracket'
+    }, {
+      // Ctrl+] に editor.action.jumpToBracket を割り当て
+      keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.BracketRight,
+      command: 'editor.action.jumpToBracket'
+    }, {
+      // Ctrl+Shift+\ に editor.action.selectToBracket を割り当て
+      keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Backslash,
+      command: 'editor.action.selectToBracket'
+    }]);
   }
 
   /**
@@ -656,7 +671,6 @@
     // プレビューを更新
     updatePreview();
   }
-
 
   const dropOverlay = document.querySelector('.drop-overlay');
   let dragCounter = 0;

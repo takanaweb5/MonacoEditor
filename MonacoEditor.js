@@ -663,6 +663,7 @@ function toggleDiffEditor() {
     });
 
     diffEditor.focus();
+    editor.focus();
   } else {
     // 差分エディタを破棄
     if (diffEditor) {
@@ -674,6 +675,7 @@ function toggleDiffEditor() {
       editor.setModel(modifiedModel);
       // 通常エディタのブックマークを更新
       updateBookmarkDecorations(editor);
+      editor.focus();
     }
   }
   const diffButton = document.getElementById('diffButton');
@@ -700,7 +702,6 @@ function toggleDiffEditor() {
   updatePreview();
   // エディタのレイアウトを更新
   layoutEditor();
-  editor.focus();
 }
 
 
@@ -717,6 +718,9 @@ function swapDiffSides() {
   originalContent = modifiedModel.getValue();
   const modifiedContent = originalModel.getValue();
 
+  // ブックマークをクリア
+  clearAllBookmarks();
+
   // 内容を入れ替え
   originalModel.setValue(originalContent);
   modifiedModel.setValue(modifiedContent);
@@ -725,6 +729,9 @@ function swapDiffSides() {
   updateFunctionDecorations(diffEditor.getOriginalEditor());
   updateFunctionDecorations(diffEditor.getModifiedEditor());
 
+  // マークダウン画面を必要に応じて更新
+  updatePreview();
+  // エディタのレイアウトを更新
   layoutEditor();
   diffEditor.focus();
   editor.focus();
@@ -880,7 +887,10 @@ function goToBookmark(direction) {
   const nextBookmark = bookmarkArray.find(line => direction * (line - currentLine) > 0) || bookmarkArray[0]
   targetEditor.setPosition({ lineNumber: nextBookmark, column: 1 });
   targetEditor.revealLineInCenter(nextBookmark);
-  targetEditor.focus(); // エディタにフォーカスを戻す
+
+  // エディタにフォーカスを戻す
+  if (isDiffMode) { diffEditor.focus(); }
+  else { editor.focus(); } 
 }
 
 /**

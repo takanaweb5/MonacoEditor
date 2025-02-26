@@ -488,14 +488,33 @@ function updatePreview() {
   const preview = document.getElementById('preview');
   const editorDiv = document.getElementById('editor');
 
-  if (language !== 'markdown' || isDiffMode) {
+  if (isDiffMode) {
     preview.classList.remove('visible');
     editorDiv.classList.remove('with-preview');
     return;
   }
+
+  switch (language) {
+    case 'markdown':
+      previewMarkdown();
+      break;
+    case 'html':
+      previewHtml();
+      break;
+    default:
+      preview.classList.remove('visible');
+      editorDiv.classList.remove('with-preview');
+      return;
+  }
+
   preview.classList.add('visible');
   editorDiv.classList.add('with-preview');
+}
 
+/**
+ * マークダウンをプレビューに表示する
+ */
+function previewMarkdown() {
   // marked.jsの設定
   marked.setOptions({
     breaks: true,  // 改行を有効に
@@ -508,6 +527,14 @@ function updatePreview() {
   document.querySelectorAll('#preview pre code').forEach((block) => {
     hljs.highlightElement(block);
   });
+}
+
+/**
+ * HTMLをプレビューに表示する
+ */
+function previewHtml() {
+  const content = editor.getValue();
+  preview.innerHTML = content.replace(/<script\b[^>]*>(.*?)<\/script>/gi, '') || '';
 }
 
 /**
@@ -890,7 +917,7 @@ function goToBookmark(direction) {
 
   // エディタにフォーカスを戻す
   if (isDiffMode) { diffEditor.focus(); }
-  else { editor.focus(); } 
+  else { editor.focus(); }
 }
 
 /**

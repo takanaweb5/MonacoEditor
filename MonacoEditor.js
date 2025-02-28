@@ -25,10 +25,35 @@ function onEditorLoad() {
     value: '',
     language: 'plaintext',
     theme: 'vs',
+    automaticLayout: true,
     lineNumbers: 'on',
     glyphMargin: true,
     folding: true
   });
+
+  // 差分エディタを作成
+  diffEditor = monaco.editor.createDiffEditor(document.getElementById('diffeditor-container'), {
+    // オプション設定
+    enableSplitViewResizing: true,
+    renderSideBySide: true,
+    originalEditable: true,
+    automaticLayout: true,
+    glyphMargin: true  // Modified Editorの行番号横のアイコン表示のために必要
+  });
+
+  // 元のコンテンツと現在のコンテンツを設定（同じ言語を適用）
+  const originalModel = monaco.editor.createModel('', 'plaintext');
+  const modifiedModel = editor.getModel();
+  diffEditor.setModel({
+    original: originalModel,
+    modified: modifiedModel
+  });
+  const originalEditor = diffEditor.getOriginalEditor();
+  const modifiedEditor = diffEditor.getModifiedEditor();
+
+  // 差分画面を非表示する
+  editorContainer.style.gridTemplateColumns = '100% 0 0';
+
   // PL/I言語の定義
   monaco.languages.register({ id: 'pli' });
 
@@ -141,14 +166,20 @@ function onEditorLoad() {
   });
 
   // エディタの内容が変更されたときの処理
-  editor.onDidChangeModelContent(updateEditorUI);
+  editor.onDidChangeModelContent(() => updateEditorUI(editor));
+  originalEditor.onDidChangeModelContent(() => updateEditorUI(originalEditor));
+  modifiedEditor.onDidChangeModelContent(() => updateEditorUI(modifiedEditor));
   // エディタの言語が変更されたときの処理
-  editor.onDidChangeModelLanguage(updateEditorUI);
-  function updateEditorUI() {
+  editor.onDidChangeModelLanguage(() => updateEditorUI(editor));
+  originalEditor.onDidChangeModelLanguage(() => updateEditorUI(originalEditor));
+  modifiedEditor.onDidChangeModelLanguage(() => updateEditorUI(modifiedEditor));
+  function updateEditorUI(target) {
     // 関数区切り線を更新
-    updateFunctionDecorations(editor);
+    updateFunctionDecorations(target);
     // プレビューを更新
     updatePreview();
+    // エディタのレイアウトを更新
+    layoutEditor();
   }
 
   // 'pli'もどき用シンボル情報提供用のCallback関数を登録
@@ -266,13 +297,13 @@ function onEditorLoad() {
     command: 'editor.action.selectToBracket'
   }]);
 
-  // 通常エディタのフォーカスイベントを設定
-  editor.onDidFocusEditorText(() => {
-    lastFocused = editor;
-  });
+  // フォーカスイベントの設定
+  originalEditor.onDidFocusEditorText(() => { lastFocused = originalEditor; });
+  modifiedEditor.onDidFocusEditorText(() => { lastFocused = modifiedEditor; });
+  editor.onDidFocusEditorText(() => { lastFocused = editor; });
 }
 
-const dropOverlay = document.querySelector('.drop-overlay');
+const dropOverlay = document.getElementById('drop-overlay');
 let dragCounter = 0;
 /**
  * ドラッグエンターイベントを処理します。デフォルトの動作を防止し、
@@ -361,6 +392,8 @@ async function openFile(e) {
     const currentLanguage = languageMap[extension] || 'plaintext';
     document.getElementById('languageSelector').value = currentLanguage;
     monaco.editor.setModelLanguage(editor.getModel(), currentLanguage);
+    updateEditorLanguage(currentLanguage, diffEditor.getOriginalEditor());
+
     if (!isDiffMode) originalContent = content;
     editor.setValue(content);
   }
@@ -485,30 +518,22 @@ function isUtf8(bytes) {
  */
 function updatePreview() {
   const language = document.getElementById('languageSelector').value;
-  const preview = document.getElementById('preview');
-  const editorDiv = document.getElementById('editor');
-
   if (isDiffMode) {
-    preview.classList.remove('visible');
-    editorDiv.classList.remove('with-preview');
+    editorContainer.style.gridTemplateColumns = '0 0 100%';
     return;
   }
-
   switch (language) {
     case 'markdown':
       previewMarkdown();
+      editorContainer.style.gridTemplateColumns = '50% 50% 0';
       break;
     case 'html':
       previewHtml();
+      editorContainer.style.gridTemplateColumns = '50% 50% 0';
       break;
     default:
-      preview.classList.remove('visible');
-      editorDiv.classList.remove('with-preview');
-      return;
+      editorContainer.style.gridTemplateColumns = '100% 0 0';
   }
-
-  preview.classList.add('visible');
-  editorDiv.classList.add('with-preview');
 }
 
 /**
@@ -540,22 +565,14 @@ function previewHtml() {
 /**
  * 言語が変更されたときの処理
  */
-function updateEditorLanguage(language, targetEditor) {
-  monaco.editor.setModelLanguage(targetEditor.getModel(), language);
-  updateFunctionDecorations(targetEditor);
-  updatePreview();
-  layoutEditor();
-}
-
 function changeLanguage() {
   const language = document.getElementById('languageSelector').value;
-  if (isDiffMode) {
-    updateEditorLanguage(language, diffEditor.getOriginalEditor());
-    updateEditorLanguage(language, diffEditor.getModifiedEditor());
-  } else {
-    updateEditorLanguage(language, editor);
-  }
+  updateEditorLanguage(language, editor);
+  updateEditorLanguage(language, diffEditor.getOriginalEditor());
   getTargetEditor().focus();
+}
+function updateEditorLanguage(language, targetEditor) {
+  monaco.editor.setModelLanguage(targetEditor.getModel(), language);
 }
 
 /**
@@ -613,8 +630,6 @@ function openInDiffMode(content) {
   originalContent = originalLines.join('\n');
   editor.setValue(modifiedLines.join('\n'));
 
-  // editorの言語を設定
-  updateEditorLanguage(language, editor);
   // editorの文字コードを設定
   document.getElementById('encodingSelector').value = 'utf8';
 
@@ -640,30 +655,7 @@ function toggleDiffEditor() {
   isDiffMode = !isDiffMode;
 
   if (isDiffMode) {
-    const editorContainer = document.getElementById('editor-container');
-    // 差分エディタを作成
-    diffEditor = monaco.editor.createDiffEditor(editorContainer, {
-      // オプション設定
-      enableSplitViewResizing: true,
-      renderSideBySide: true,
-      originalEditable: true,
-      glyphMargin: true  // Modified Editorの行番号横のアイコン表示のために必要
-    });
-
-    // 現在の言語設定を取得
-    const currentLanguage = editor.getModel().getLanguageId();
-
-    // 元のコンテンツと現在のコンテンツを設定（同じ言語を適用）
-    const originalModel = monaco.editor.createModel(originalContent, currentLanguage);
-    const modifiedModel = editor.getModel();
-    diffEditor.setModel({
-      original: originalModel,
-      modified: modifiedModel
-    });
-
-    // 関数区切り線を両方のエディタに追加
-    updateFunctionDecorations(diffEditor.getOriginalEditor());
-    updateFunctionDecorations(diffEditor.getModifiedEditor());
+    diffEditor.getOriginalEditor().setValue(originalContent);
     // Modified Editorにブックマークの装飾を適用
     updateBookmarkDecorations(diffEditor.getModifiedEditor());
 
@@ -671,48 +663,18 @@ function toggleDiffEditor() {
     const tabSize = parseInt(document.getElementById('tabSizeSelector').value, 10);
     diffEditor.getOriginalEditor().updateOptions({ tabSize: tabSize });
     diffEditor.getModifiedEditor().updateOptions({ tabSize: tabSize });
-
-    // 差分エディタのコンテンツ変更時イベント
-    diffEditor.getModifiedEditor().onDidChangeModelContent(() => {
-      updateFunctionDecorations(diffEditor.getModifiedEditor());
-      updateBookmarkDecorations(diffEditor.getModifiedEditor());
-    });
-    diffEditor.getOriginalEditor().onDidChangeModelContent(() => {
-      updateFunctionDecorations(diffEditor.getOriginalEditor());
-      updateBookmarkDecorations(diffEditor.getOriginalEditor());
-    });
-    // フォーカスイベントの設定
-    diffEditor.getOriginalEditor().onDidFocusEditorText(() => {
-      lastFocused = diffEditor.getOriginalEditor();
-    });
-    diffEditor.getModifiedEditor().onDidFocusEditorText(() => {
-      lastFocused = diffEditor.getModifiedEditor();
-    });
-
     diffEditor.focus();
     editor.focus();
   } else {
-    // 差分エディタを破棄
-    if (diffEditor) {
-      const modifiedModel = diffEditor.getModifiedEditor().getModel();
-      const originalModel = diffEditor.getOriginalEditor().getModel();
-      originalContent = originalModel.getValue();
-      diffEditor.dispose();
-      // 修正されたモデルを保持
-      editor.setModel(modifiedModel);
-      // 通常エディタのブックマークを更新
-      updateBookmarkDecorations(editor);
-      editor.focus();
-    }
+    originalContent = diffEditor.getOriginalEditor().getModel().getValue();
+    // 通常エディタのブックマークを更新
+    updateBookmarkDecorations(editor);
+    editor.focus();
   }
   const diffButton = document.getElementById('diffButton');
   if (isDiffMode) {
-    // 元のエディタを非表示
-    editor.getContainerDomNode().style.display = 'none';
     diffButton.classList.add('active');
   } else {
-    // 元のエディタを表示
-    editor.getContainerDomNode().style.display = 'block';
     diffButton.classList.remove('active');
   }
 
@@ -725,10 +687,11 @@ function toggleDiffEditor() {
     }
   });
 
-  // マークダウン画面を必要に応じて更新
-  updatePreview();
   // エディタのレイアウトを更新
   layoutEditor();
+
+  // マークダウン画面を必要に応じて更新
+  updatePreview();
 }
 
 
@@ -770,10 +733,7 @@ function swapDiffSides() {
 function changeTabSize() {
   const tabSize = parseInt(document.getElementById('tabSizeSelector').value);
   editor.getModel().updateOptions({ tabSize: tabSize });
-  if (isDiffMode) {
-    diffEditor.getOriginalEditor().getModel().updateOptions({ tabSize: tabSize });
-    diffEditor.getModifiedEditor().getModel().updateOptions({ tabSize: tabSize });
-  }
+  diffEditor.getOriginalEditor().getModel().updateOptions({ tabSize: tabSize });
   // エディタのレイアウトを更新
   layoutEditor();
   getTargetEditor().focus();

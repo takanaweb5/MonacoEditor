@@ -132,6 +132,7 @@
   <div id="editor-container" ondragover="event.preventDefault();" ondragenter="handleDragEnter(event)"
     ondragleave="handleDragLeave(event)" ondrop="openFile(event)">
     <div id="editor"></div>
+    <div id="splitter" onmousedown="isDragging = true"></div>
     <div id="preview"></div>
     <div id="diffeditor-container"></div>
   </div>
@@ -161,9 +162,7 @@
     height: calc(100vh - 38px);
     display: grid;
     overflow: hidden;
-    /* 親要素のスクロールバーを非表示にする */
-    // grid-template-columns: 1fr 1fr 1fr;
-    // gap: 10px;
+    /* grid-template-columns: 1fr 4px 1fr 0; */
   }
 
   #editor {
@@ -178,6 +177,11 @@
     height: 100%;
   }
 
+  #splitter {
+    width: 4px;
+    background-color: #ccc;
+    cursor: ew-resize;
+  }
 
   #preview {
     top: 0;

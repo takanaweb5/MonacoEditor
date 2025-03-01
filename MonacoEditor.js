@@ -52,7 +52,7 @@ function onEditorLoad() {
   const modifiedEditor = diffEditor.getModifiedEditor();
 
   // 差分画面を非表示する
-  editorContainer.style.gridTemplateColumns = '100% 0 0';
+  editorContainer.style.gridTemplateColumns = '100% 0 0 0';
 
   // PL/I言語の定義
   monaco.languages.register({ id: 'pli' });
@@ -519,20 +519,19 @@ function isUtf8(bytes) {
 function updatePreview() {
   const language = document.getElementById('languageSelector').value;
   if (isDiffMode) {
-    editorContainer.style.gridTemplateColumns = '0 0 100%';
+    editorContainer.style.gridTemplateColumns = '0 0 0 100%';
     return;
   }
   switch (language) {
     case 'markdown':
       previewMarkdown();
-      editorContainer.style.gridTemplateColumns = '50% 50% 0';
+      editorContainer.style.gridTemplateColumns = 'calc(50% - 2px) 4px calc(50% - 2px) 0';
       break;
     case 'html':
       previewHtml();
-      editorContainer.style.gridTemplateColumns = '50% 50% 0';
-      break;
+      editorContainer.style.gridTemplateColumns = 'calc(50% - 2px) 4px calc(50% - 2px) 0'; break;
     default:
-      editorContainer.style.gridTemplateColumns = '100% 0 0';
+      editorContainer.style.gridTemplateColumns = '100% 0 0 0';
   }
 }
 
@@ -1008,3 +1007,15 @@ function getTargetEditor() {
   // 差分モードの場合は、lastFocusedがあればそれを、なければ右側のエディタを返す
   return lastFocused || diffEditor.getModifiedEditor();
 }
+
+let isDragging = false;
+window.addEventListener('mousemove', (e) => {
+  if (isDragging) {
+    let newWidth = e.clientX - editorContainer.getBoundingClientRect().left;
+    const maxWidth = editorContainer.offsetWidth - 150;
+    newWidth = newWidth < 150 ? 150 : (newWidth > maxWidth ? maxWidth : newWidth);
+    editorContainer.style.gridTemplateColumns = `${newWidth}px 4px 1fr 0`;
+  }
+});
+
+window.addEventListener('mouseup', () => { isDragging = false; });

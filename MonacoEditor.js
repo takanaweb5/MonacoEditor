@@ -576,7 +576,21 @@ function previewMarkdown() {
  */
 function previewHtml() {
   const content = editor.getValue();
-  preview.innerHTML = content.replace(/<script\b[^>]*>(.*?)<\/script>/gi, '') || '';
+  const iframe = document.createElement('iframe');
+  iframe.id = 'preview-iframe';  // IDを設定
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.border = 'none';
+
+  // 既存のプレビュー内容をクリア
+  preview.innerHTML = '';
+  preview.appendChild(iframe);
+
+  // iframeのドキュメントにコンテンツを書き込む
+  const doc = iframe.contentDocument;
+  doc.open();
+  doc.write(content);
+  doc.close();
 }
 
 /**
@@ -1031,7 +1045,19 @@ window.addEventListener('mousemove', (e) => {
     const maxWidth = editorContainer.offsetWidth - 150;
     newWidth = newWidth < 150 ? 150 : (newWidth > maxWidth ? maxWidth : newWidth);
     editorContainer.style.gridTemplateColumns = `${newWidth}px 4px 1fr 0`;
+
+    // iframeのポインターイベントを無効化
+    const previewIframe = document.getElementById('preview-iframe');
+    if (previewIframe) previewIframe.style.pointerEvents = 'none';
   }
 });
 
-window.addEventListener('mouseup', () => { isDragging = false; });
+window.addEventListener('mouseup', () => {
+  if (isDragging) {
+    isDragging = false;
+
+    // iframeのポインターイベントを再有効化
+    const previewIframe = document.getElementById('preview-iframe');
+    if (previewIframe) previewIframe.style.pointerEvents = 'auto';
+  }
+});

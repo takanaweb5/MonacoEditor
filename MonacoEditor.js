@@ -24,6 +24,7 @@ function onEditorLoad() {
   editor = monaco.editor.create(document.getElementById('editor'), {
     value: '',
     language: 'plaintext',
+    tabSize: 2,
     // fontFamily: '"MS Gothic", Consolas, "Courier New", monospace',
     fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace',
     // fontWeight: 'normal',
@@ -31,7 +32,15 @@ function onEditorLoad() {
     automaticLayout: true,
     lineNumbers: 'on',
     glyphMargin: true,
-    folding: true
+    multiCursorModifier: 'ctrlCmd',
+    // renderWhitespace: 'all',
+    folding: true,
+    guides: {
+      bracketPairs: true,          // 常に垂直ガイドラインを表示
+      bracketPairsHorizontal: true,// 常に水平ガイドラインを表示
+      highlightActiveBracketPair: true, // アクティブな括弧をハイライト
+      indentation: false            // インデントガイドを表示
+    }
   });
 
   // 差分エディタを作成
@@ -41,7 +50,15 @@ function onEditorLoad() {
     renderSideBySide: true,
     originalEditable: true,
     automaticLayout: true,
-    glyphMargin: true  // Modified Editorの行番号横のアイコン表示のために必要
+    glyphMargin: true,  // Modified Editorの行番号横のアイコン表示のために必要
+    multiCursorModifier: 'ctrlCmd',
+    folding: true,
+    guides: {
+      bracketPairs: true,          // 常に垂直ガイドラインを表示
+      bracketPairsHorizontal: true,// 常に水平ガイドラインを表示
+      highlightActiveBracketPair: true, // アクティブな括弧をハイライト
+      indentation: false            // インデントガイドを表示
+    }
   });
 
   // 元のコンテンツと現在のコンテンツを設定（同じ言語を適用）
@@ -284,11 +301,11 @@ function onEditorLoad() {
 
   // キー割り当てを変更する
   monaco.editor.addKeybindingRules([{
-    // Ctrl+[ に editor.action.jumpToBracket を割り当て
+    // Ctrl+'[' に editor.action.jumpToBracket を割り当て
     keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.BracketLeft,
     command: 'editor.action.jumpToBracket'
   }, {
-    // Ctrl+] に editor.action.jumpToBracket を割り当て
+    // Ctrl+']' に editor.action.jumpToBracket を割り当て
     keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.BracketRight,
     command: 'editor.action.jumpToBracket'
   }, {
@@ -525,11 +542,12 @@ function updatePreview() {
   switch (language) {
     case 'markdown':
       previewMarkdown();
-      editorContainer.style.gridTemplateColumns = 'calc(50% - 2px) 4px calc(50% - 2px) 0';
+      editorContainer.style.gridTemplateColumns = '60% 4px 1fr 0';
       break;
     case 'html':
       previewHtml();
-      editorContainer.style.gridTemplateColumns = 'calc(50% - 2px) 4px calc(50% - 2px) 0'; break;
+      editorContainer.style.gridTemplateColumns = '60% 4px 1fr 0';
+      break;
     default:
       editorContainer.style.gridTemplateColumns = '100% 0 0 0';
   }
@@ -732,9 +750,7 @@ function swapDiffSides() {
 function changeTabSize() {
   const tabSize = parseInt(document.getElementById('tabSizeSelector').value);
   editor.getModel().updateOptions({ tabSize: tabSize });
-  diffEditor.getOriginalEditor().getModel().updateOptions({ tabSize: tabSize });
-  // エディタのレイアウトを更新
-  layoutEditor();
+  diffEditor.getModel().original.updateOptions({ tabSize: tabSize });
   getTargetEditor().focus();
 }
 

@@ -24,7 +24,10 @@ function onEditorLoad() {
   editor = monaco.editor.create(document.getElementById('editor'), {
     value: '',
     language: 'plaintext',
-    theme: 'vs',
+    // fontFamily: '"MS Gothic", Consolas, "Courier New", monospace',
+    fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace',
+    // fontWeight: 'normal',
+    // fontSize: 14,
     automaticLayout: true,
     lineNumbers: 'on',
     glyphMargin: true,
@@ -186,46 +189,43 @@ function onEditorLoad() {
   monaco.languages.registerDocumentSymbolProvider('vb', { provideDocumentSymbols });
   function provideDocumentSymbols(model, token) {
     const symbols = [];
-    const START_PATTERN = '(?:private|public)? *(?:function|sub|property) +(\\w+).*';// 関数の開始行
-    const END_PATTERN = '(end) +(?:function|sub|property)\\b';// 関数の終了行
-    const functionRegex = new RegExp(`^ *(?:${START_PATTERN}|${END_PATTERN})`, 'igm');
-    // コード内容を取得
-    const codeContent = model.getValue();
-    // 終了行を先に取得するため後方から配列に格納する
-    const matches = Array.from(codeContent.matchAll(functionRegex)).reverse();
-    let endLine = 0; // 終了行を格納する変数
+    const lines = model.getLinesContent();
+    let endLine = 0;
+    let match = null;
 
-    matches.forEach(match => {
-      const line = model.getPositionAt(match.index + 1).lineNumber;
-
-      // match[2] が 'end' の場合（終了行）
-      if (match[2]?.toLowerCase() === 'end') {
-        endLine = line; // 終了行を格納
-        return;
+    // 終了行を先に取得するため後方からLOOPする
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const lineNum = i + 1;
+      const line = lines[i];
+      match = line.trim().match(/^end +(?:function|sub|property)\b/i);
+      if (match) {
+        endLine = lineNum;
+        continue;
       }
 
-      // match[1] が有効な場合（開始行）
-      if (match[1]) {
+      match = line.trim().match(/^(?:private|public)? *(?:function|sub|property) +(\w+)/i);
+      // matchが有効な場合（開始行）
+      if (match) {
         symbols.push({
           name: match[1],
           kind: monaco.languages.SymbolKind.Function,
           range: {
-            startLineNumber: line,
+            startLineNumber: lineNum,
             startColumn: 1,
-            endLineNumber: endLine || line,
+            endLineNumber: endLine || lineNum,
             endColumn: 1
           },
           selectionRange: {
-            startLineNumber: line,
+            startLineNumber: lineNum,
             startColumn: 1,
-            endLineNumber: line,
+            endLineNumber: lineNum,
             endColumn: 1
           },
           // detail: '詳細情報（オプション）',
         });
+        endLine = 0;
       }
-      endLine = 0;
-    });
+    };
     return symbols;
   }
 

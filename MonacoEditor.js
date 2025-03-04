@@ -20,45 +20,37 @@ require(['vs/editor/editor.main'], onEditorLoad);
  * エディタの内容が変更されたときや、言語が変更されたときの処理を定義。
  */
 function onEditorLoad() {
+  const EDITOR_GUIDE_OPTIONS = {
+    bracketPairs: true,          // 常に垂直ガイドラインを表示
+    bracketPairsHorizontal: true,// 常に水平ガイドラインを表示
+    highlightActiveBracketPair: true, // アクティブな括弧をハイライト
+    indentation: false            // インデントガイドを表示
+  };
+
+  const COMMON_EDITOR_OPTIONS = {
+    automaticLayout: true, // エディタの自動レイアウト
+    glyphMargin: true, // 行番号横のアイコン表示
+    multiCursorModifier: 'ctrlCmd', // マルチカーソルの修飾キー
+    folding: true, // コードの折りたたみ
+    guides: EDITOR_GUIDE_OPTIONS // ガイドラインの設定
+  };
+
   // 通常のエディタを作成
   editor = monaco.editor.create(document.getElementById('editor'), {
+    ...COMMON_EDITOR_OPTIONS,
     value: '',
     language: 'plaintext',
     tabSize: 2,
-    // fontFamily: '"MS Gothic", Consolas, "Courier New", monospace',
-    fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace',
-    // fontWeight: 'normal',
-    // fontSize: 14,
-    automaticLayout: true,
     lineNumbers: 'on',
-    glyphMargin: true,
-    multiCursorModifier: 'ctrlCmd',
-    // renderWhitespace: 'all',
-    folding: true,
-    guides: {
-      bracketPairs: true,          // 常に垂直ガイドラインを表示
-      bracketPairsHorizontal: true,// 常に水平ガイドラインを表示
-      highlightActiveBracketPair: true, // アクティブな括弧をハイライト
-      indentation: false            // インデントガイドを表示
-    }
+    // renderWhitespace: 'all', // 常に空白文字を表示
   });
 
   // 差分エディタを作成
   diffEditor = monaco.editor.createDiffEditor(document.getElementById('diffeditor-container'), {
-    // オプション設定
-    enableSplitViewResizing: true,
-    renderSideBySide: true,
-    originalEditable: true,
-    automaticLayout: true,
-    glyphMargin: true,  // Modified Editorの行番号横のアイコン表示のために必要
-    multiCursorModifier: 'ctrlCmd',
-    folding: true,
-    guides: {
-      bracketPairs: true,          // 常に垂直ガイドラインを表示
-      bracketPairsHorizontal: true,// 常に水平ガイドラインを表示
-      highlightActiveBracketPair: true, // アクティブな括弧をハイライト
-      indentation: false            // インデントガイドを表示
-    }
+    ...COMMON_EDITOR_OPTIONS,
+    enableSplitViewResizing: true, // 分割ビューのリサイズを有効化
+    renderSideBySide: true, // サイドバイサイドで表示
+    originalEditable: true, // 元のコンテンツを編集可能にする
   });
 
   // 元のコンテンツと現在のコンテンツを設定（同じ言語を適用）
@@ -411,7 +403,10 @@ async function openFile(e) {
     monaco.editor.setModelLanguage(editor.getModel(), currentLanguage);
     updateEditorLanguage(currentLanguage, diffEditor.getOriginalEditor());
 
-    if (!isDiffMode) originalContent = content;
+    if (!isDiffMode) {
+      originalContent = content;
+      diffEditor.getOriginalEditor().setValue(content);
+    }
     editor.setValue(content);
   }
 
@@ -627,7 +622,14 @@ async function readFileContent(file, encoding) {
 /**
  * ウィンドウのリサイズイベントを監視し、エディタを再描画する
  */
-window.addEventListener('resize', layoutEditor);
+window.addEventListener('resize', resize);
+function resize() {
+  const newHeight = `calc(100vh - 40px)`;
+  editorContainer.style.height = newHeight;
+  document.getElementById('editor').style.height = newHeight;
+  document.getElementById('diffeditor-container').style.height = newHeight;
+  layoutEditor();
+}
 
 /**
  * 差分モードでファイルを開く

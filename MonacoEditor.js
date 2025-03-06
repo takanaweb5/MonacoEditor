@@ -537,14 +537,19 @@ function updatePreview() {
   switch (language) {
     case 'markdown':
       previewMarkdown();
-      editorContainer.style.gridTemplateColumns = '60% 4px 1fr 0';
       break;
     case 'html':
       previewHtml();
-      editorContainer.style.gridTemplateColumns = '60% 4px 1fr 0';
       break;
-    default:
-      editorContainer.style.gridTemplateColumns = '100% 0 0 0';
+  }
+
+  if (['markdown', 'html'].includes(language)) {
+    // 現在の言語を編集中の時は、幅を変更させない
+    if (parseInt(editorContainer.style.gridTemplateColumns.split(' ')[1]) === 0) {
+      editorContainer.style.gridTemplateColumns = '60% 4px 1fr 0';
+    }
+  } else {
+    editorContainer.style.gridTemplateColumns = '100% 0 0 0';
   }
 }
 

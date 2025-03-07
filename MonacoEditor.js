@@ -1046,25 +1046,26 @@ function getTargetEditor() {
 }
 
 let isDragging = false;
-window.addEventListener('mousemove', (e) => {
+window.addEventListener('mousemove', mousemove);
+function mousemove(e) {
   if (isDragging) {
     let newWidth = e.clientX - editorContainer.getBoundingClientRect().left;
-    const maxWidth = editorContainer.offsetWidth - 150;
-    newWidth = newWidth < 150 ? 150 : (newWidth > maxWidth ? maxWidth : newWidth);
+    const maxWidth = editorContainer.offsetWidth - 50;
+    newWidth = newWidth < 50 ? 50 : (newWidth > maxWidth ? maxWidth : newWidth);
     editorContainer.style.gridTemplateColumns = `${newWidth}px 4px 1fr 0`;
 
     // iframeのポインターイベントを無効化
     const previewIframe = document.getElementById('preview-iframe');
     if (previewIframe) previewIframe.style.pointerEvents = 'none';
   }
-});
-
-window.addEventListener('mouseup', () => {
+}
+window.addEventListener('mouseup', mouseup);
+function mouseup() {
   if (isDragging) {
-    isDragging = false;
 
+    isDragging = false;
     // iframeのポインターイベントを再有効化
     const previewIframe = document.getElementById('preview-iframe');
     if (previewIframe) previewIframe.style.pointerEvents = 'auto';
   }
-});
+}

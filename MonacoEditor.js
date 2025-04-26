@@ -586,11 +586,8 @@ function previewHtml() {
   preview.innerHTML = '';
   preview.appendChild(iframe);
 
-  // iframeのドキュメントにコンテンツを書き込む
-  const doc = iframe.contentDocument;
-  doc.open();
-  doc.write(content);
-  doc.close();
+  // iframeにhtmlの内容を表示
+  iframe.srcdoc = content;
 }
 
 /**

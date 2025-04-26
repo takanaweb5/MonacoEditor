@@ -583,14 +583,10 @@ function previewHtml() {
   iframe.style.border = 'none';
 
   // 既存のプレビュー内容をクリア
-  preview.innerHTML = '';
-  preview.appendChild(iframe);
+  preview.replaceChildren(iframe);
 
-  // iframeのドキュメントにコンテンツを書き込む
-  const doc = iframe.contentDocument;
-  doc.open();
-  doc.write(content);
-  doc.close();
+  // iframeにhtmlの内容を表示
+  iframe.srcdoc = content;
 }
 
 /**

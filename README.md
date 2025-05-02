@@ -9,6 +9,7 @@ MonacoEditorは、Microsoft社が開発したVS Codeと同じエディタエン�
   - プレーンテキスト
   - IPO
   - HTML
+  - TypeScript
   - JavaScript
   - CSS
 - 高度なエディタ機能

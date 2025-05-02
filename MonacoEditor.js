@@ -385,6 +385,7 @@ async function openFile(e) {
 
     const languageMap = {
       'js': 'javascript',
+      'ts': 'typescript',
       'html': 'html',
       'css': 'css',
       'vb': 'vb',
@@ -451,6 +452,7 @@ function updateFunctionDecorations(targetEditor) {
     'vb': /^\s*(private\s+|public\s+|protected\s+|friend\s+)?(function|sub|property)\s+/i,
     'sql': /^\s*(create\s+)?(procedure|function|trigger|view)\s+/i,
     'javascript': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
+    'typescript': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
     'html': /^\s*(async\s+)?(function\s+[\w$]+|\w+\s*=\s*(async\s+)?function\s*|class\s+[\w$]+)/i,
     'pli': /^\s*[\w$]+:\s*proc;/i
   };
@@ -843,6 +845,7 @@ function createFileData() {
   }
   const languageMap = {
     'javascript': '.js',
+    'typescript': '.ts',
     'html': '.html',
     'css': '.css',
     'vb': '.vb',

@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+  <link href="https://cdn.jsdelivr.net/gh/yuru7/udev-gothic/webfonts/udev-gothic.css" rel="stylesheet">
   <script src="https://unpkg.com/monaco-editor@0.37.0/min/vs/loader.js"></script>
   <script>const MONACO_URL = "https://unpkg.com/monaco-editor@0.37.0/min/vs"</script>
 </head>
@@ -27,6 +28,11 @@
         <option value="vb">VB</option>
         <option value="markdown">Markdown</option>
         <option value="sql">SQL</option>
+        <option value="pascal">Pascal</option>
+        <option value="csharp">C#</option>
+        <option value="python">Python</option>
+        <option value="julia">Julia</option>
+        <option value="go">Go</option>
       </select>
     </div>
     <div class="toolbar-separator"></div>
@@ -43,6 +49,17 @@
       <select id="encodingSelector" title="ファイル保存時の文字コード">
         <option value="utf8">UTF8</option>
         <option value="sjis">SJIS</option>
+      </select>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <label for="fontSelector" title="エディタのフォントを切り替えます">フォント</label>
+      <select id="fontSelector" onchange="changeFont()" title="エディタのフォントを切り替えます">
+        <option value="UDEV Gothic NFJ, Fira Mono, monospace">UDEV Gothic NFJ</option>
+        <option value="Consolas, monospace">Consolas</option>
+        <option value="'Courier New', Courier, monospace">Courier New</option>
+        <option value="Meiryo, メイリオ, sans-serif">メイリオ</option>
+        <option value="MS Gothic, ＭＳ ゴシック, monospace">MS ゴシック</option>
       </select>
     </div>
     <div class="toolbar-separator"></div>

@@ -42,6 +42,7 @@ function onEditorLoad() {
     language: 'plaintext',
     tabSize: 2,
     lineNumbers: 'on',
+    fontFamily: "UDEV Gothic NFJ, Fira Mono, monospace",
     // renderWhitespace: 'all', // 常に空白文字を表示
   });
 
@@ -387,6 +388,7 @@ async function openFile(e) {
       'js': 'javascript',
       'ts': 'typescript',
       'html': 'html',
+      'svg': 'html',
       'css': 'css',
       'vb': 'vb',
       'bas': 'vb',
@@ -396,7 +398,13 @@ async function openFile(e) {
       'txt': 'plaintext',
       'sql': 'sql',
       'md': 'markdown',
-      'ipo': 'pli'
+      'ipo': 'pli',
+      'pas': 'pascal',
+      'dpr': 'pascal',
+      'cs': 'csharp',
+      'py': 'python',
+      'jl': 'julia',
+      'go': 'go'
     };
 
     const currentLanguage = languageMap[extension] || 'plaintext';
@@ -566,7 +574,6 @@ function previewMarkdown() {
   });
   const content = editor.getValue();
   preview.innerHTML = marked.parse(content || '');
-
   // コードブロックにシンタックスハイライトを適用
   document.querySelectorAll('#preview pre code').forEach((block) => {
     hljs.highlightElement(block);
@@ -764,12 +771,27 @@ function swapDiffSides() {
 }
 
 /**
- * タブサイズを変更する
+ * タブサイズを変更する
  */
 function changeTabSize() {
-  const tabSize = parseInt(document.getElementById('tabSizeSelector').value);
+  const tabSize = parseInt(document.getElementById('tabSizeSelector').value, 10);
   editor.getModel().updateOptions({ tabSize: tabSize });
   diffEditor.getModel().original.updateOptions({ tabSize: tabSize });
+  layoutEditor();
+  getTargetEditor().focus();
+}
+
+/**
+ * フォントを変更する
+ */
+function changeFont() {
+  const fontFamily = document.getElementById('fontSelector').value;
+  editor.updateOptions({ fontFamily: fontFamily });
+
+  // 差分エディタの両方のエディタにも適用
+  diffEditor.getOriginalEditor().updateOptions({ fontFamily: fontFamily });
+  diffEditor.getModifiedEditor().updateOptions({ fontFamily: fontFamily });
+  layoutEditor();
   getTargetEditor().focus();
 }
 
